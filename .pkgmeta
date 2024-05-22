@@ -1,0 +1,7 @@
+package-as: Libs-RemixThreadCount
+
+ignore:
+    README.md
+    *.Definition.lua
+
+enable-nolib-creation: no

@@ -1,0 +1,3 @@
+{
+  "Lua.diagnostics.globals": ["TooltipDataProcessor", "LARGE_NUMBER_SEPERATOR"]
+}

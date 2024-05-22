@@ -1,0 +1,11 @@
+## Interface: 100207
+## Title: Libs - Remix Thread Count
+## Notes: Adds a display to the character screen and tooltips
+## IconTexture: Interface/Addons/Libs-RemixThreadCount/Logo-Icon
+## Version: @project-version@
+## Author: wutname1
+## X-Curse-Project-ID: 1023198
+## X-Wago-ID: vNAe8BNo
+## X-Github: https://github.com/Wutname1/Libs-RemixThreadCount
+
+main.lua
