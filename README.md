@@ -11,3 +11,5 @@
 - Displays the thread count of your cloak on the character screen.
 - Adds thread count information to tooltips when you mouse over other players.
 - Seamlessly integrates with your UI.
+
+![Example](https://media.forgecdn.net/attachments/872/876/examplescreen.png)
