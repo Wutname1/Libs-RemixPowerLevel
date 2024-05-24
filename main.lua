@@ -5,11 +5,10 @@ local function comma_value(value)
 	return left .. (num:reverse():gsub('(%d%d%d)', '%1' .. (LARGE_NUMBER_SEPERATOR)):reverse()) .. right
 end
 
-local timerunner = C_UnitAuras.GetPlayerAuraBySpellID(424143)
-
 TooltipDataProcessor.AddTooltipPostCall(
 	Enum.TooltipDataType.Unit,
 	function(self)
+		local timerunner = C_UnitAuras.GetPlayerAuraBySpellID(424143)
 		local _, unit = self:GetUnit()
 		if not unit or not timerunner then
 			return
@@ -29,21 +28,22 @@ local function UpdateItemSlotButton(button, unit)
 	local slotID = button:GetID()
 
 	if slotID >= INVSLOT_FIRST_EQUIPPED and slotID <= INVSLOT_LAST_EQUIPPED then
-		local item
-		if unit == 'player' then
-			item = Item:CreateFromEquipmentSlot(slotID)
-		else
-			local itemID = GetInventoryItemID(unit, slotID)
-			local itemLink = GetInventoryItemLink(unit, slotID)
-			if itemLink or itemID then
-				item = itemLink and Item:CreateFromItemLink(itemLink) or Item:CreateFromItemID(itemID)
-			end
-		end
-
-		if not item or item:IsItemEmpty() then
-			return
-		end
+		local timerunner = C_UnitAuras.GetPlayerAuraBySpellID(424143)
 		if timerunner then
+			local item
+			if unit == 'player' then
+				item = Item:CreateFromEquipmentSlot(slotID)
+			else
+				local itemID = GetInventoryItemID(unit, slotID)
+				local itemLink = GetInventoryItemLink(unit, slotID)
+				if itemLink or itemID then
+					item = itemLink and Item:CreateFromItemLink(itemLink) or Item:CreateFromItemID(itemID)
+				end
+			end
+
+			if not item or item:IsItemEmpty() then
+				return
+			end
 			-- Create overlay frame if it doesn't exist
 			if not button.ThreadCountOverlay then
 				local overlayFrame = CreateFrame('FRAME', nil, button)
