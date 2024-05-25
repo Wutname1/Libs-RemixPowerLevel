@@ -5,31 +5,35 @@ local function comma_value(value)
 	return left .. (num:reverse():gsub('(%d%d%d)', '%1' .. (LARGE_NUMBER_SEPERATOR)):reverse()) .. right
 end
 
-TooltipDataProcessor.AddTooltipPostCall(
-	Enum.TooltipDataType.Unit,
-	function(self)
-		local timerunner = C_UnitAuras.GetPlayerAuraBySpellID(424143)
-		local _, unit = self:GetUnit()
-		if not unit or not timerunner then
-			return
-		end
-		local playerData = C_UnitAuras.GetAuraDataBySpellName(unit, "Timerunner's Advantage")
-		if playerData ~= nil then
-			local total = 0
-			for i = 1, 9 do
-				total = total + playerData.points[i]
-			end
-			self:AddLine('\n|cff00FF98Threads |cffFFFFFF' .. comma_value(total))
-		end
-	end
-)
+---@return boolean
+local function IsTimerunnerMode()
+	return PlayerGetTimerunningSeasonID and PlayerGetTimerunningSeasonID() ~= nil
+end
 
+---@param self any
+local function TooltipProcessor(self)
+	local _, unit = self:GetUnit()
+	if not unit then
+		print('content')
+		return
+	end
+	local cloakData = C_UnitAuras.GetAuraDataBySpellName(unit, "Timerunner's Advantage")
+	if cloakData ~= nil then
+		local total = 0
+		for i = 1, 9 do
+			total = total + cloakData.points[i]
+		end
+		self:AddLine('\n|cff00FF98Threads |cffFFFFFF' .. comma_value(total))
+	end
+end
+
+---@param button any
+---@param unit UnitId
 local function UpdateItemSlotButton(button, unit)
 	local slotID = button:GetID()
 
 	if slotID >= INVSLOT_FIRST_EQUIPPED and slotID <= INVSLOT_LAST_EQUIPPED then
-		local timerunner = C_UnitAuras.GetPlayerAuraBySpellID(424143)
-		if timerunner then
+		if IsTimerunnerMode() then
 			local item
 			if unit == 'player' then
 				item = Item:CreateFromEquipmentSlot(slotID)
@@ -52,7 +56,7 @@ local function UpdateItemSlotButton(button, unit)
 				button.ThreadCountOverlay = overlayFrame
 			end
 
-			if string.match(item:GetItemName(), 'Cloak of Infinite Potential') then
+			if string.match(item:GetItemName() or '', 'Cloak of Infinite Potential') then
 				local c, ThreadCount = {0, 1, 2, 3, 4, 5, 6, 7, 148}, 0
 				for i = 1, 9 do
 					ThreadCount = ThreadCount + C_CurrencyInfo.GetCurrencyInfo(2853 + c[i]).quantity
@@ -70,9 +74,15 @@ local function UpdateItemSlotButton(button, unit)
 	end
 end
 
-hooksecurefunc(
-	'PaperDollItemSlotButton_Update',
-	function(button)
-		UpdateItemSlotButton(button, 'player')
-	end
-)
+if IsTimerunnerMode() then
+	-- Add tooltip processor
+	TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, TooltipProcessor)
+
+	-- Add item slot button update
+	hooksecurefunc(
+		'PaperDollItemSlotButton_Update',
+		function(button)
+			UpdateItemSlotButton(button, 'player')
+		end
+	)
+end
