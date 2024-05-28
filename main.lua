@@ -1,3 +1,6 @@
+---@class LibRTC : AceAddon
+local LibRTC = LibStub('AceAddon-3.0'):NewAddon('Libs-RemixThreadCount')
+
 ---@param value string
 ---@return string
 local function comma_value(value)
@@ -14,7 +17,6 @@ end
 local function TooltipProcessor(self)
 	local _, unit = self:GetUnit()
 	if not unit then
-		print('content')
 		return
 	end
 	local cloakData = C_UnitAuras.GetAuraDataBySpellName(unit, "Timerunner's Advantage")
@@ -74,15 +76,17 @@ local function UpdateItemSlotButton(button, unit)
 	end
 end
 
-if IsTimerunnerMode() then
-	-- Add tooltip processor
-	TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, TooltipProcessor)
+function LibRTC:OnEnable()
+	if IsTimerunnerMode() then
+		-- Add tooltip processor
+		TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, TooltipProcessor)
 
-	-- Add item slot button update
-	hooksecurefunc(
-		'PaperDollItemSlotButton_Update',
-		function(button)
-			UpdateItemSlotButton(button, 'player')
-		end
-	)
+		-- Add item slot button update
+		hooksecurefunc(
+			'PaperDollItemSlotButton_Update',
+			function(button)
+				UpdateItemSlotButton(button, 'player')
+			end
+		)
+	end
 end
