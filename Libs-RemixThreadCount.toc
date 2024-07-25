@@ -1,4 +1,4 @@
-## Interface: 100207
+## Interface: 110000
 ## Title: Libs - Remix Thread Count
 ## Notes: Adds a display to the character screen and tooltips
 ## IconTexture: Interface/Addons/Libs-RemixThreadCount/Logo-Icon
