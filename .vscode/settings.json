@@ -2,7 +2,6 @@
   "Lua.diagnostics.globals": [
     "TooltipDataProcessor",
     "LARGE_NUMBER_SEPERATOR",
-    "PlayerGetTimerunningSeasonID",
     "SlashCmdList",
     "hash_SlashCmdList",
     "DEFAULT_CHAT_FRAME",
@@ -34,16 +33,23 @@
     "GameTooltip_Hide",
     "RED_FONT_COLOR",
     "GameTooltip_AddErrorLine",
-    "hooksecurefunc",
-    "string",
-    "C_UnitAuras",
     "INVSLOT_FIRST_EQUIPPED",
     "INVSLOT_LAST_EQUIPPED",
-    "Enum",
-    "GetInventoryItemID",
-    "GetInventoryItemLink",
-    "CreateFrame",
-    "Item",
-    "C_CurrencyInfo"
+    "Item"
+  ],
+  "Lua.runtime.version": "Lua 5.1",
+  "Lua.runtime.builtin": {
+    "basic": "disable",
+    "debug": "disable",
+    "io": "disable",
+    "math": "disable",
+    "os": "disable",
+    "package": "disable",
+    "string": "disable",
+    "table": "disable",
+    "utf8": "disable"
+  },
+  "Lua.workspace.library": [
+    "~\\.vscode\\extensions\\ketho.wow-api-0.17.4\\Annotations"
   ]
 }

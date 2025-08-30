@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep:*)",
+      "Bash(mkdir:*)",
+      "WebSearch",
+      "WebFetch(domain:www.curseforge.com)",
+      "WebFetch(domain:www.wowace.com)",
+      "WebFetch(domain:github.com)",
+      "Bash(rm:*)",
+      "Bash(find:*)",
+      "Bash(sed:*)",
+      "Bash(for file in *.lua)",
+      "Bash(do grep *",
+      "Bash(echo \"$file\")",
+      "Bash(true)",
+      "Bash(done)",
+      "Bash(luac:*)",
+      "Bash(do echo \"=== $file ===\")",
+      "Bash(tail:*)",
+      "Bash(for file in *",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ],
+    "deny": [],
+    "ask": [],
+    "defaultMode": "acceptEdits",
+    "additionalDirectories": [
+      "C:\\Users\\jerem\\Syncthing\\WoW\\AppData\\_retail_\\Interface\\Addons",
+      "C:\\Users\\jerem\\Syncthing\\WOW\\MyCode",
+      "C:\\Users\\jerem\\Syncthing\\WOW\\WOWUICode",
+      "C:\\Users\\jerem\\OneDrive\\WoW\\Examples"
+    ]
+  },
+  "outputStyle": "default",
+  "includeCoAuthoredBy": false
+}
