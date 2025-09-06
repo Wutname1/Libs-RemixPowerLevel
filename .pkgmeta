@@ -1,4 +1,4 @@
-package-as: Libs-RemixThreadCount
+package-as: Libs-RemixPowerLevel
 
 ignore:
     README.md

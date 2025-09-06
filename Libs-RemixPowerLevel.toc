@@ -1,12 +1,12 @@
 ## Interface: 110200, 110205
-## Title: Libs - Remix Thread Count
+## Title: Libs - Remix Power Level
 ## Notes: Adds a display to the character screen and tooltips
-## IconTexture: Interface/Addons/Libs-RemixThreadCount/Logo-Icon
+## IconTexture: Interface/Addons/Libs-RemixPowerLevel/Logo-Icon
 ## Version: @project-version@
 ## Author: wutname1
 ## X-Curse-Project-ID: 1023198
 ## X-Wago-ID: vNAe8BNo
-## X-Github: https://github.com/Wutname1/Libs-RemixThreadCount
+## X-Github: https://github.com/Wutname1/Libs-RemixPowerLevel
 
 # Libraries
 libs\AceAddon-3.0\AceAddon-3.0.lua

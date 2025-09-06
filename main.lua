@@ -1,5 +1,5 @@
 ---@class LibRTC : AceAddon
-local LibRTC = LibStub('AceAddon-3.0'):NewAddon('Libs-RemixThreadCount')
+local LibRTC = LibStub('AceAddon-3.0'):NewAddon('Libs-RemixPowerLevel')
 
 -- MOP: Timerunner's Advantage
 -- Legion: Infinite Power
