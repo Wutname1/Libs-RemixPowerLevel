@@ -1,4 +1,4 @@
-## Interface: 110200, 110205
+## Interface: 110205
 ## Title: Lib's - Remix Power Level
 ## Notes: Adds a display to the character screen and tooltips
 ## IconTexture: Interface/Addons/Libs-RemixPowerLevel/Logo-Icon
