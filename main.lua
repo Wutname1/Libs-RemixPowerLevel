@@ -30,6 +30,11 @@ end
 
 ---@param self any
 local function TooltipProcessor(self)
+	-- Check if tooltip display is enabled
+	if not LibRTC.db or not LibRTC.db.profile.showInTooltip then
+		return
+	end
+
 	local _, unit = self:GetUnit()
 	if not unit then
 		return
@@ -63,6 +68,18 @@ end
 ---@param button any
 ---@param unit UnitId
 local function UpdateItemSlotButton(button, unit)
+	-- Check if character screen display is enabled
+	if not LibRTC.db or not LibRTC.db.profile.showInCharacterScreen then
+		-- Hide any existing displays
+		if button.threadCount then
+			button.threadCount:SetText('')
+		end
+		if button.infinitePowerCount then
+			button.infinitePowerCount:SetText('')
+		end
+		return
+	end
+
 	local slotID = button:GetID()
 
 	if slotID >= INVSLOT_FIRST_EQUIPPED and slotID <= INVSLOT_LAST_EQUIPPED then
@@ -192,15 +209,80 @@ local function GetTop10Players()
 	return top10
 end
 
+---Setup options UI
+local function GetOptions()
+	return {
+		name = "Lib's - Remix Power Level",
+		type = 'group',
+		get = function(info)
+			return LibRTC.db.profile[info[#info]]
+		end,
+		set = function(info, value)
+			LibRTC.db.profile[info[#info]] = value
+		end,
+		args = {
+			description = {
+				type = 'description',
+				name = 'Display power level information for Timerunner characters (MOP Remix Threads / Legion Remix Infinite Power).',
+				order = 1,
+				fontSize = 'medium'
+			},
+			showInCharacterScreen = {
+				type = 'toggle',
+				name = 'Show in Character Screen',
+				desc = 'Display thread count next to the Cloak of Infinite Potential (MOP) or Infinite Power above main weapon (Legion)',
+				order = 10,
+				width = 'full'
+			},
+			showInTooltip = {
+				type = 'toggle',
+				name = 'Show in Tooltip',
+				desc = 'Display power level information in unit tooltips',
+				order = 11,
+				width = 'full'
+			},
+			minimapHeader = {
+				type = 'header',
+				name = 'Minimap Button',
+				order = 20
+			},
+			minimapButton = {
+				type = 'toggle',
+				name = 'Show Minimap Button',
+				desc = 'Display a minimap button that shows top 10 power levels in your group',
+				order = 21,
+				width = 'full',
+				get = function()
+					return not LibRTC.db.profile.minimap.hide
+				end,
+				set = function(_, value)
+					LibRTC.db.profile.minimap.hide = not value
+					if value then
+						LDBIcon:Show('Libs-RemixPowerLevel')
+					else
+						LDBIcon:Hide('Libs-RemixPowerLevel')
+					end
+				end
+			}
+		}
+	}
+end
+
 function LibRTC:OnInitialize()
 	-- Setup database
 	self.db = LibStub('AceDB-3.0'):New('LibsRemixPowerLevelDB', {
 		profile = {
+			showInCharacterScreen = true,
+			showInTooltip = true,
 			minimap = {
 				hide = false
 			}
 		}
 	}, true)
+
+	-- Register options with AceConfig
+	LibStub('AceConfig-3.0'):RegisterOptionsTable('Libs-RemixPowerLevel', GetOptions)
+	LibStub('AceConfigDialog-3.0'):AddToBlizOptions('Libs-RemixPowerLevel', "Lib's - Remix Power Level")
 
 	-- Create LibDataBroker object
 	local ldbObject = LDB:NewDataObject('Libs-RemixPowerLevel', {
@@ -209,13 +291,13 @@ function LibRTC:OnInitialize()
 		icon = 'Interface/Addons/Libs-RemixPowerLevel/Logo-Icon',
 		OnClick = function(clickedframe, button)
 			if button == 'LeftButton' then
-				-- Open options (placeholder for now)
-				print('Libs-RemixPowerLevel: Options not yet implemented')
+				-- Open Blizzard options to this addon
+				Settings.OpenToCategory("Lib's - Remix Power Level")
 			elseif button == 'RightButton' and IsShiftKeyDown() then
 				-- Hide minimap button
 				LibRTC.db.profile.minimap.hide = true
 				LDBIcon:Hide('Libs-RemixPowerLevel')
-				print('Libs-RemixPowerLevel: Minimap button hidden. Use /rpl show to restore it.')
+				print("Libs-RemixPowerLevel: Minimap button hidden. Re-enable in addon options.")
 			end
 		end,
 		OnTooltipShow = function(tooltip)
@@ -256,23 +338,11 @@ function LibRTC:OnInitialize()
 	-- Register minimap icon
 	LDBIcon:Register('Libs-RemixPowerLevel', ldbObject, self.db.profile.minimap)
 
-	-- Register slash command
+	-- Register slash command to open options
 	SLASH_REMIXPOWERLEVEL1 = '/rpl'
 	SLASH_REMIXPOWERLEVEL2 = '/remixpowerlevel'
-	SlashCmdList['REMIXPOWERLEVEL'] = function(msg)
-		if msg:lower() == 'show' then
-			self.db.profile.minimap.hide = false
-			LDBIcon:Show('Libs-RemixPowerLevel')
-			print('Libs-RemixPowerLevel: Minimap button shown')
-		elseif msg:lower() == 'hide' then
-			self.db.profile.minimap.hide = true
-			LDBIcon:Hide('Libs-RemixPowerLevel')
-			print('Libs-RemixPowerLevel: Minimap button hidden')
-		else
-			print('Libs-RemixPowerLevel Commands:')
-			print('  /rpl show - Show minimap button')
-			print('  /rpl hide - Hide minimap button')
-		end
+	SlashCmdList['REMIXPOWERLEVEL'] = function()
+		Settings.OpenToCategory("Lib's - Remix Power Level")
 	end
 end
 

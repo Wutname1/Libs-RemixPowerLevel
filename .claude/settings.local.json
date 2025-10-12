@@ -1,36 +1,22 @@
 {
-  "includeCoAuthoredBy": false,
   "permissions": {
     "allow": [
-      "Bash(grep)",
-      "Bash(mkdir)",
-      "Bash(rm)",
-      "Bash(find)",
-      "Bash(sed)",
-      "Bash(echo)",
-      "Bash(tail)",
-      "Bash(git)",
-      "Bash(luac)",
-      "Bash(for)",
-      "Bash(do)",
-      "Bash(done)",
-      "WebSearch",
-      "WebFetch(domain:www.curseforge.com)",
-      "WebFetch(domain:www.wowace.com)",
-      "WebFetch(domain:github.com)",
-      "Read(**/*.lua)",
-      "Write(**/*.lua)",
-      "Edit(**/*.lua)"
+      "Bash",
+      "Bash*",
+      "Bash(dir:*)",
+      "Read",
+      "Read*",
+      "Read(*)",
+      "WebFetch(domain:*)"
     ],
     "deny": [],
     "ask": [],
-    "defaultMode": "acceptEdits",
     "additionalDirectories": [
-      "C:/Users/jerem/Syncthing/WoW/AppData/_retail_/Interface/Addons",
-      "C:/Users/jerem/Syncthing/WOW/MyCode",
-      "C:/Users/jerem/Syncthing/WOW/WOWUICode",
-      "C:/Users/jerem/OneDrive/WoW/Examples"
+      "C:\\Users\\jerem\\Syncthing\\WoW\\AppData\\_retail_\\Interface\\Addons",
+      "C:\\Users\\jerem\\Syncthing\\WOW\\MyCode",
+      "C:\\Users\\jerem\\Syncthing\\WOW\\WOWUICode",
+      "C:\\Users\\jerem\\OneDrive\\WoW\\Examples"
     ]
   },
-  "outputStyle": "default"
+  "includeCoAuthoredBy": false
 }
