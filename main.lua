@@ -1,5 +1,7 @@
 ---@class LibRTC : AceAddon
-local LibRTC = LibStub('AceAddon-3.0'):NewAddon('Libs-RemixPowerLevel')
+local LibRTC = LibStub('AceAddon-3.0'):NewAddon('Libs-RemixPowerLevel', 'AceEvent-3.0')
+local LDB = LibStub('LibDataBroker-1.1')
+local LDBIcon = LibStub('LibDBIcon-1.0')
 
 -- MOP: Timerunner's Advantage
 -- Legion: Infinite Power
@@ -130,6 +132,150 @@ local function UpdateItemSlotButton(button, unit)
 	end
 end
 
+---Get top 10 players by power level in group/raid
+---@return table
+local function GetTop10Players()
+	local players = {}
+
+	if not IsInGroup() then
+		return players
+	end
+
+	local numMembers = GetNumGroupMembers()
+	local isRaid = IsInRaid()
+
+	for i = 1, numMembers do
+		local unit = (isRaid and 'raid' or 'party') .. i
+		if UnitExists(unit) then
+			local name = UnitName(unit)
+			local realm = GetRealmName()
+			local fullName = name .. '-' .. realm
+			local powerLevel = 0
+
+			-- Check for MOP Remix threads
+			if IsMOPRemix() then
+				local cloakData = C_UnitAuras.GetAuraDataBySpellName(unit, "Timerunner's Advantage")
+				if cloakData ~= nil then
+					for i = 1, 9 do
+						powerLevel = powerLevel + (cloakData.points[i] or 0)
+					end
+				end
+			end
+
+			-- Check for Legion Remix Infinite Power
+			if IsLegionRemix() then
+				local powerData = C_UnitAuras.GetAuraDataBySpellName(unit, 'Infinite Power')
+				if powerData ~= nil then
+					for i = 1, #powerData.points do
+						powerLevel = powerLevel + (powerData.points[i] or 0)
+					end
+				end
+			end
+
+			if powerLevel > 0 then
+				table.insert(players, {name = fullName, power = powerLevel})
+			end
+		end
+	end
+
+	-- Sort by power level descending
+	table.sort(players, function(a, b)
+		return a.power > b.power
+	end)
+
+	-- Return top 10
+	local top10 = {}
+	for i = 1, math.min(10, #players) do
+		table.insert(top10, players[i])
+	end
+
+	return top10
+end
+
+function LibRTC:OnInitialize()
+	-- Setup database
+	self.db = LibStub('AceDB-3.0'):New('LibsRemixPowerLevelDB', {
+		profile = {
+			minimap = {
+				hide = false
+			}
+		}
+	}, true)
+
+	-- Create LibDataBroker object
+	local ldbObject = LDB:NewDataObject('Libs-RemixPowerLevel', {
+		type = 'data source',
+		text = 'Remix Power Level',
+		icon = 'Interface/Addons/Libs-RemixPowerLevel/Logo-Icon',
+		OnClick = function(clickedframe, button)
+			if button == 'LeftButton' then
+				-- Open options (placeholder for now)
+				print('Libs-RemixPowerLevel: Options not yet implemented')
+			elseif button == 'RightButton' and IsShiftKeyDown() then
+				-- Hide minimap button
+				LibRTC.db.profile.minimap.hide = true
+				LDBIcon:Hide('Libs-RemixPowerLevel')
+				print('Libs-RemixPowerLevel: Minimap button hidden. Use /rpl show to restore it.')
+			end
+		end,
+		OnTooltipShow = function(tooltip)
+			if not IsTimerunnerMode() then
+				tooltip:AddLine('|cffFFFFFFLibs - Remix Power Level|r')
+				tooltip:AddLine('|cffFF0000Not in Timerunner mode|r')
+				return
+			end
+
+			tooltip:AddLine('|cffFFFFFFLibs - Remix Power Level|r')
+			tooltip:AddLine(' ')
+
+			if not IsInGroup() then
+				tooltip:AddLine('|cffFFAA00Not in a group|r')
+				tooltip:AddLine(' ')
+				tooltip:AddLine('|cff00FF00Left Click:|r Open Options')
+				tooltip:AddLine('|cff00FF00Shift+Right Click:|r Hide Minimap Button')
+				return
+			end
+
+			local top10 = GetTop10Players()
+
+			if #top10 == 0 then
+				tooltip:AddLine('|cffFFAA00No power levels detected|r')
+			else
+				tooltip:AddLine('|cff00FF98Top 10 Players:|r')
+				for i, player in ipairs(top10) do
+					tooltip:AddLine(string.format('%s |cffFFFFFF%s|r', comma_value(player.power), player.name))
+				end
+			end
+
+			tooltip:AddLine(' ')
+			tooltip:AddLine('|cff00FF00Left Click:|r Open Options')
+			tooltip:AddLine('|cff00FF00Shift+Right Click:|r Hide Minimap Button')
+		end
+	})
+
+	-- Register minimap icon
+	LDBIcon:Register('Libs-RemixPowerLevel', ldbObject, self.db.profile.minimap)
+
+	-- Register slash command
+	SLASH_REMIXPOWERLEVEL1 = '/rpl'
+	SLASH_REMIXPOWERLEVEL2 = '/remixpowerlevel'
+	SlashCmdList['REMIXPOWERLEVEL'] = function(msg)
+		if msg:lower() == 'show' then
+			self.db.profile.minimap.hide = false
+			LDBIcon:Show('Libs-RemixPowerLevel')
+			print('Libs-RemixPowerLevel: Minimap button shown')
+		elseif msg:lower() == 'hide' then
+			self.db.profile.minimap.hide = true
+			LDBIcon:Hide('Libs-RemixPowerLevel')
+			print('Libs-RemixPowerLevel: Minimap button hidden')
+		else
+			print('Libs-RemixPowerLevel Commands:')
+			print('  /rpl show - Show minimap button')
+			print('  /rpl hide - Hide minimap button')
+		end
+	end
+end
+
 function LibRTC:OnEnable()
 	if IsTimerunnerMode() then
 		-- Add tooltip processor
@@ -142,5 +288,10 @@ function LibRTC:OnEnable()
 				UpdateItemSlotButton(button, 'player')
 			end
 		)
+
+		-- Register group roster update to refresh minimap tooltip
+		self:RegisterEvent('GROUP_ROSTER_UPDATE', function()
+			-- Tooltip will auto-update on next hover
+		end)
 	end
 end

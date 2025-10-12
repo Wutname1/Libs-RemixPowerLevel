@@ -5,3 +5,26 @@ ignore:
     *.Definition.lua
 
 enable-nolib-creation: no
+
+externals:
+    libs/LibStub:
+        url: https://repos.wowace.com/wow/libstub/trunk
+        tag: latest
+    libs/CallbackHandler-1.0:
+        url: https://repos.wowace.com/wow/callbackhandler/trunk/CallbackHandler-1.0
+        tag: latest
+    libs/AceAddon-3.0:
+        url: https://repos.wowace.com/wow/ace3/trunk/AceAddon-3.0
+        tag: latest
+    libs/AceDB-3.0:
+        url: https://repos.wowace.com/wow/ace3/trunk/AceDB-3.0
+        tag: latest
+    libs/AceEvent-3.0:
+        url: https://repos.wowace.com/wow/ace3/trunk/AceEvent-3.0
+        tag: latest
+    libs/LibDataBroker-1.1:
+        url: https://github.com/tekkub/libdatabroker-1-1
+        tag: latest
+    libs/LibDBIcon-1.0:
+        url: https://repos.wowace.com/wow/libdbicon-1-0/trunk/LibDBIcon-1.0
+        tag: latest
