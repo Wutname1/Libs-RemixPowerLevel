@@ -196,9 +196,12 @@ local function GetTop10Players()
 	end
 
 	-- Sort by power level descending
-	table.sort(players, function(a, b)
-		return a.power > b.power
-	end)
+	table.sort(
+		players,
+		function(a, b)
+			return a.power > b.power
+		end
+	)
 
 	-- Return top 10
 	local top10 = {}
@@ -270,70 +273,79 @@ end
 
 function LibRTC:OnInitialize()
 	-- Setup database
-	self.db = LibStub('AceDB-3.0'):New('LibsRemixPowerLevelDB', {
-		profile = {
-			showInCharacterScreen = true,
-			showInTooltip = true,
-			minimap = {
-				hide = false
+	self.db =
+		LibStub('AceDB-3.0'):New(
+		'LibsRemixPowerLevelDB',
+		{
+			profile = {
+				showInCharacterScreen = true,
+				showInTooltip = true,
+				minimap = {
+					hide = false
+				}
 			}
-		}
-	}, true)
+		},
+		true
+	)
 
 	-- Register options with AceConfig
 	LibStub('AceConfig-3.0'):RegisterOptionsTable('Libs-RemixPowerLevel', GetOptions)
 	LibStub('AceConfigDialog-3.0'):AddToBlizOptions('Libs-RemixPowerLevel', "Lib's - Remix Power Level")
 
 	-- Create LibDataBroker object
-	local ldbObject = LDB:NewDataObject('Libs-RemixPowerLevel', {
-		type = 'data source',
-		text = 'Remix Power Level',
-		icon = 'Interface/Addons/Libs-RemixPowerLevel/Logo-Icon',
-		OnClick = function(clickedframe, button)
-			if button == 'LeftButton' then
-				-- Open Blizzard options to this addon
-				Settings.OpenToCategory("Lib's - Remix Power Level")
-			elseif button == 'RightButton' and IsShiftKeyDown() then
-				-- Hide minimap button
-				LibRTC.db.profile.minimap.hide = true
-				LDBIcon:Hide('Libs-RemixPowerLevel')
-				print("Libs-RemixPowerLevel: Minimap button hidden. Re-enable in addon options.")
-			end
-		end,
-		OnTooltipShow = function(tooltip)
-			if not IsTimerunnerMode() then
+	local ldbObject =
+		LDB:NewDataObject(
+		'Libs-RemixPowerLevel',
+		{
+			type = 'data source',
+			text = 'Remix Power Level',
+			icon = 'Interface/Addons/Libs-RemixPowerLevel/Logo-Icon',
+			OnClick = function(clickedframe, button)
+				if button == 'LeftButton' then
+					-- Open Blizzard options to this addon
+					Settings.OpenToCategory("Lib's - Remix Power Level")
+				elseif button == 'RightButton' and IsShiftKeyDown() then
+					-- Hide minimap button
+					LibRTC.db.profile.minimap.hide = true
+					LDBIcon:Hide('Libs-RemixPowerLevel')
+					print('Libs-RemixPowerLevel: Minimap button hidden. Re-enable in addon options.')
+				end
+			end,
+			OnTooltipShow = function(tooltip)
+				if not IsTimerunnerMode() then
+					tooltip:AddLine('|cffFFFFFFLibs - Remix Power Level|r')
+					tooltip:AddLine('|cffFF0000Not in Timerunner mode|r')
+					return
+				end
+
 				tooltip:AddLine('|cffFFFFFFLibs - Remix Power Level|r')
-				tooltip:AddLine('|cffFF0000Not in Timerunner mode|r')
-				return
-			end
+				tooltip:AddLine(' ')
 
-			tooltip:AddLine('|cffFFFFFFLibs - Remix Power Level|r')
-			tooltip:AddLine(' ')
+				if not IsInGroup() then
+					tooltip:AddLine('|cffFFAA00Not in a group|r')
+					tooltip:AddLine(' ')
+					tooltip:AddLine('|cff00FF00Left Click:|r Open Options')
+					tooltip:AddLine('|cff00FF00Shift+Right Click:|r Hide Minimap Button')
+					return
+				end
 
-			if not IsInGroup() then
-				tooltip:AddLine('|cffFFAA00Not in a group|r')
+				local top10 = GetTop10Players()
+
+				if #top10 == 0 then
+					tooltip:AddLine('|cffFFAA00No power levels detected|r')
+				else
+					tooltip:AddLine('|cff00FF98Top 10 Players:|r')
+					for i, player in ipairs(top10) do
+						tooltip:AddLine(string.format('%s |cffFFFFFF%s|r', comma_value(player.power), player.name))
+					end
+				end
+
 				tooltip:AddLine(' ')
 				tooltip:AddLine('|cff00FF00Left Click:|r Open Options')
 				tooltip:AddLine('|cff00FF00Shift+Right Click:|r Hide Minimap Button')
-				return
 			end
-
-			local top10 = GetTop10Players()
-
-			if #top10 == 0 then
-				tooltip:AddLine('|cffFFAA00No power levels detected|r')
-			else
-				tooltip:AddLine('|cff00FF98Top 10 Players:|r')
-				for i, player in ipairs(top10) do
-					tooltip:AddLine(string.format('%s |cffFFFFFF%s|r', comma_value(player.power), player.name))
-				end
-			end
-
-			tooltip:AddLine(' ')
-			tooltip:AddLine('|cff00FF00Left Click:|r Open Options')
-			tooltip:AddLine('|cff00FF00Shift+Right Click:|r Hide Minimap Button')
-		end
-	})
+		}
+	)
 
 	-- Register minimap icon
 	LDBIcon:Register('Libs-RemixPowerLevel', ldbObject, self.db.profile.minimap)
@@ -358,10 +370,5 @@ function LibRTC:OnEnable()
 				UpdateItemSlotButton(button, 'player')
 			end
 		)
-
-		-- Register group roster update to refresh minimap tooltip
-		self:RegisterEvent('GROUP_ROSTER_UPDATE', function()
-			-- Tooltip will auto-update on next hover
-		end)
 	end
 end
