@@ -21,3 +21,6 @@ libs\LibDBIcon-1.0\LibDBIcon-1.0.lua
 
 # Core
 main.lua
+
+# Modules
+Modules\Scrapping.lua

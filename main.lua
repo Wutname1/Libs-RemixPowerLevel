@@ -1,4 +1,4 @@
----@class LibRTC : AceAddon
+---@class LibRTC : AceAddon, AceEvent-3.0
 local LibRTC = LibStub('AceAddon-3.0'):NewAddon('Libs-RemixPowerLevel', 'AceEvent-3.0')
 local LDB = LibStub('LibDataBroker-1.1')
 local LDBIcon = LibStub('LibDBIcon-1.0')
@@ -288,8 +288,11 @@ function LibRTC:OnInitialize()
 		true
 	)
 
+	-- Create options table for modules to extend
+	self.OptTable = GetOptions()
+
 	-- Register options with AceConfig
-	LibStub('AceConfig-3.0'):RegisterOptionsTable('Libs-RemixPowerLevel', GetOptions)
+	LibStub('AceConfig-3.0'):RegisterOptionsTable('Libs-RemixPowerLevel', function() return self.OptTable end)
 	LibStub('AceConfigDialog-3.0'):AddToBlizOptions('Libs-RemixPowerLevel', "Lib's - Remix Power Level")
 
 	-- Create LibDataBroker object

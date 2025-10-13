@@ -1,0 +1,942 @@
+---@class LibRTC
+local LibRTC = LibStub('AceAddon-3.0'):GetAddon('Libs-RemixPowerLevel')
+---@class LibRTC.Module.Scrapping : AceModule
+local module = LibRTC:NewModule('Scrapping', 'AceEvent-3.0')
+module.DisplayName = 'Auto Scrapper'
+module.description = 'Automatically scrap items based on filters'
+
+-- Constants
+local SCRAPPING_MACHINE_MAX_SLOTS = 9
+
+-- Known Legion Remix Affixes/Talents
+local KNOWN_AFFIXES = {
+	-- Base Talents
+	'Remix Time',
+	"Nostwin's Impatience",
+	"Eternus's Ambition",
+	"Erus's Aggression",
+	"Momentus's Perseverance",
+	"Moratari's Calculation",
+	-- Nature
+	'Call of the Forest',
+	'Souls of the Claw',
+	'Highmountain Fortitude',
+	'Waking Frenzy',
+	'Dream Weaving',
+	-- Fel
+	'Twisted Crusade',
+	'Touch of Malice',
+	'I am my Scars!',
+	'Call of the Legion',
+	'Felspike',
+	-- Arcane
+	"Naran's Everdisc",
+	'Volatile Magics',
+	'Arcane Aegis',
+	'Arcane Ward',
+	'Temporal Retaliation',
+	'Arcane Inspiration',
+	-- Storm
+	'Tempest Wrath',
+	'Storm Surger',
+	'Brewing Storm',
+	'Thunder Struck',
+	'Churning Waters',
+	-- Holy
+	"Vindicator's Judgment",
+	"Light's Vengeance",
+	"Flight of the Val'kyr",
+	"Xe'ras embrace",
+	'Empyreal Orders',
+	-- Common stats to blacklist
+	'Versatility',
+	'Critical Strike',
+	'Haste',
+	'Mastery'
+}
+
+-- Map inventory types to equipment slots
+local ITEM_TO_INV_SLOT = {
+	[Enum.InventoryType.IndexHeadType] = 1,
+	[Enum.InventoryType.IndexNeckType] = 2,
+	[Enum.InventoryType.IndexShoulderType] = 3,
+	[Enum.InventoryType.IndexBodyType] = 4,
+	[Enum.InventoryType.IndexChestType] = 5,
+	[Enum.InventoryType.IndexWaistType] = 6,
+	[Enum.InventoryType.IndexLegsType] = 7,
+	[Enum.InventoryType.IndexFeetType] = 8,
+	[Enum.InventoryType.IndexWristType] = 9,
+	[Enum.InventoryType.IndexHandType] = 10,
+	[Enum.InventoryType.IndexFingerType] = {11, 12},
+	[Enum.InventoryType.IndexTrinketType] = {13, 14},
+	[Enum.InventoryType.IndexCloakType] = 15,
+	[Enum.InventoryType.IndexRobeType] = 5,
+	[Enum.InventoryType.IndexWeaponType] = 16,
+	[Enum.InventoryType.IndexShieldType] = 17,
+	[Enum.InventoryType.Index2HweaponType] = 16,
+	[Enum.InventoryType.IndexWeaponmainhandType] = 16,
+	[Enum.InventoryType.IndexWeaponoffhandType] = 17
+}
+
+---@class ScrappableItem
+---@field bagID number
+---@field slotID number
+---@field level number
+---@field invType Enum.InventoryType
+---@field quality Enum.ItemQuality
+---@field link string
+---@field location ItemLocation
+
+---@class LibRTC.Module.Scrapping.DB
+local DbDefaults = {
+	autoScrap = false,
+	maxQuality = Enum.ItemQuality.Rare,
+	minLevelDiff = 0,
+	affixBlacklist = {}
+}
+
+-- Tooltip scanner for detecting affixes
+local scannerTooltip = CreateFrame('GameTooltip', 'LibsRemixPowerLevelScannerTooltip', nil, 'GameTooltipTemplate')
+scannerTooltip:SetOwner(UIParent, 'ANCHOR_NONE')
+
+function module:OnInitialize()
+	-- Check if character name starts with "lib" for auto-scrap default
+	local charName = UnitName('player'):lower()
+	if charName:sub(1, 3) == 'lib' then
+		DbDefaults.autoScrap = true
+	end
+
+	module.Database = LibRTC.db:RegisterNamespace('Scrapping', {profile = DbDefaults})
+	module.DB = module.Database.profile ---@type LibRTC.Module.Scrapping.DB
+
+	-- Add module options to parent addon options table
+	self:InitializeOptions()
+end
+
+---Add scrapping options to parent addon options
+function module:InitializeOptions()
+	if not LibRTC.OptTable then
+		return
+	end
+
+	LibRTC.OptTable.args.scrapping = {
+		type = 'group',
+		name = 'Auto Scrapper',
+		order = 30,
+		args = {
+			description = {
+				type = 'description',
+				name = 'Automatically scrap items at the scrapping machine based on filters.',
+				order = 1,
+				fontSize = 'medium'
+			},
+			autoScrap = {
+				type = 'toggle',
+				name = 'Enable Auto Scrap',
+				desc = 'Automatically fill the scrapping machine with items matching your filters',
+				order = 10,
+				width = 'full',
+				get = function()
+					return self.DB.autoScrap
+				end,
+				set = function(_, value)
+					self.DB.autoScrap = value
+				end
+			},
+			maxQuality = {
+				type = 'select',
+				name = 'Max Quality to Scrap',
+				desc = 'Only scrap items up to this quality level',
+				order = 11,
+				width = 'full',
+				values = {
+					[Enum.ItemQuality.Common] = '|cffFFFFFFCommon|r',
+					[Enum.ItemQuality.Uncommon] = '|cff1EFF00Uncommon|r',
+					[Enum.ItemQuality.Rare] = '|cff0070DDRare|r',
+					[Enum.ItemQuality.Epic] = '|cffA335EEEpic|r'
+				},
+				get = function()
+					return self.DB.maxQuality
+				end,
+				set = function(_, value)
+					self.DB.maxQuality = value
+				end
+			},
+			minLevelDiff = {
+				type = 'range',
+				name = 'Min Item Level Difference',
+				desc = 'Only scrap items this many levels below your equipped gear',
+				order = 12,
+				width = 'full',
+				min = 0,
+				max = 50,
+				step = 1,
+				get = function()
+					return self.DB.minLevelDiff
+				end,
+				set = function(_, value)
+					self.DB.minLevelDiff = value
+				end
+			},
+			affixInfo = {
+				type = 'description',
+				name = '\nAffix blacklist management is available in the scrapping machine UI.',
+				order = 20
+			}
+		}
+	}
+end
+
+function module:OnEnable()
+	if not PlayerGetTimerunningSeasonID or PlayerGetTimerunningSeasonID() == nil then
+		return
+	end
+
+	self:Init()
+end
+
+----------------------------------------------------------------------------------------------------
+-- Core Functions
+----------------------------------------------------------------------------------------------------
+
+---Get minimum item level for equipped gear in this slot
+---@param invType Enum.InventoryType
+---@return number|nil
+function module:GetMinLevelForInvType(invType)
+	local equipmentSlot = ITEM_TO_INV_SLOT[invType]
+	if not equipmentSlot then
+		return nil
+	end
+
+	if type(equipmentSlot) == 'number' then
+		local equippedItemLoc = ItemLocation:CreateFromEquipmentSlot(equipmentSlot)
+		if equippedItemLoc:IsValid() then
+			return C_Item.GetCurrentItemLevel(equippedItemLoc)
+		end
+	elseif type(equipmentSlot) == 'table' then
+		-- Handle multi-slot items (rings, trinkets)
+		local minLevel = nil
+		for _, slot in ipairs(equipmentSlot) do
+			local equippedItemLoc = ItemLocation:CreateFromEquipmentSlot(slot)
+			if equippedItemLoc:IsValid() then
+				local itemLevel = C_Item.GetCurrentItemLevel(equippedItemLoc)
+				if not minLevel or itemLevel < minLevel then
+					minLevel = itemLevel
+				end
+			end
+		end
+		return minLevel
+	end
+	return nil
+end
+
+---Get all scrappable items in bags
+---@return ScrappableItem[]
+function module:GetScrappableItems()
+	local scrappableItems = {}
+	for bagID = BACKPACK_CONTAINER, NUM_TOTAL_EQUIPPED_BAG_SLOTS do
+		for slotID = 1, C_Container.GetContainerNumSlots(bagID) do
+			local itemLoc = ItemLocation:CreateFromBagAndSlot(bagID, slotID)
+			if itemLoc:IsValid() and C_Item.CanScrapItem(itemLoc) then
+				table.insert(
+					scrappableItems,
+					{
+						bagID = bagID,
+						slotID = slotID,
+						level = C_Item.GetCurrentItemLevel(itemLoc),
+						invType = C_Item.GetItemInventoryType(itemLoc),
+						quality = C_Item.GetItemQuality(itemLoc),
+						link = C_Item.GetItemLink(itemLoc),
+						location = itemLoc
+					}
+				)
+			end
+		end
+	end
+	return scrappableItems
+end
+
+---Scan item tooltip to detect affixes
+---@param itemLink string
+---@return table<string, boolean>
+function module:ScanItemAffixes(itemLink)
+	local affixes = {}
+	if not itemLink then
+		return affixes
+	end
+
+	scannerTooltip:ClearLines()
+	scannerTooltip:SetHyperlink(itemLink)
+
+	-- Scan all tooltip lines
+	for i = 1, scannerTooltip:NumLines() do
+		local line = _G['LibsRemixPowerLevelScannerTooltipTextLeft' .. i]
+		if line then
+			local text = line:GetText()
+			if text then
+				affixes[text] = true
+			end
+		end
+	end
+
+	return affixes
+end
+
+---Check if item has any blacklisted affixes
+---@param itemLink string
+---@return boolean
+function module:HasBlacklistedAffix(itemLink)
+	if not self.DB.affixBlacklist then
+		return false
+	end
+
+	local affixes = self:ScanItemAffixes(itemLink)
+	for affixText in pairs(affixes) do
+		for blacklistedAffix in pairs(self.DB.affixBlacklist) do
+			if affixText:find(blacklistedAffix, 1, true) then
+				return true
+			end
+		end
+	end
+
+	return false
+end
+
+---Get filtered scrappable items based on settings
+---@param capReturn number|nil
+---@return ScrappableItem[]
+function module:GetFilteredScrappableItems(capReturn)
+	local minLevelDiff = self.DB.minLevelDiff or 0
+	local maxQuality = self.DB.maxQuality or Enum.ItemQuality.Rare
+
+	local scrappableItems = self:GetScrappableItems()
+	local filteredItems = {}
+
+	for _, item in ipairs(scrappableItems) do
+		local equippedItemLevel = self:GetMinLevelForInvType(item.invType)
+		if equippedItemLevel and equippedItemLevel - item.level >= minLevelDiff and item.quality <= maxQuality then
+			if not self:HasBlacklistedAffix(item.link) then
+				table.insert(filteredItems, item)
+
+				if capReturn and #filteredItems >= capReturn then
+					break
+				end
+			end
+		end
+	end
+
+	return filteredItems
+end
+
+---Scrap an item from bag into scrapping machine
+---@param bagID number
+---@param slotID number
+---@return boolean success
+function module:ScrapItemFromBag(bagID, slotID)
+	C_Container.PickupContainerItem(bagID, slotID)
+	local slots = {ScrappingMachineFrame.ItemSlots:GetChildren()}
+	for i = 1, SCRAPPING_MACHINE_MAX_SLOTS do
+		if not C_ScrappingMachineUI.GetCurrentPendingScrapItemLocationByIndex(i - 1) then
+			slots[i]:Click()
+			return true
+		end
+	end
+	ClearCursor()
+	return false
+end
+
+---Get number of active scrap items
+---@return number
+function module:GetNumActiveScrap()
+	local count = 0
+	if C_ScrappingMachineUI.HasScrappableItems() then
+		for i = 1, SCRAPPING_MACHINE_MAX_SLOTS do
+			if C_ScrappingMachineUI.GetCurrentPendingScrapItemLocationByIndex(i - 1) then
+				count = count + 1
+			end
+		end
+	end
+	return count
+end
+
+---Auto scrap a batch of items
+function module:AutoScrapBatch()
+	local itemsToScrap = self:GetFilteredScrappableItems(SCRAPPING_MACHINE_MAX_SLOTS)
+
+	if #itemsToScrap < SCRAPPING_MACHINE_MAX_SLOTS then
+		if self:GetNumActiveScrap() >= #itemsToScrap then
+			return
+		end
+	end
+
+	if C_ScrappingMachineUI.HasScrappableItems() then
+		return
+	end
+
+	C_ScrappingMachineUI.RemoveAllScrapItems()
+	for _, item in ipairs(itemsToScrap) do
+		self:ScrapItemFromBag(item.bagID, item.slotID)
+	end
+end
+
+---Auto scrap if enabled
+function module:AutoScrap()
+	if not ScrappingMachineFrame or not ScrappingMachineFrame:IsShown() then
+		return
+	end
+	if not self.DB.autoScrap then
+		return
+	end
+	if C_ScrappingMachineUI.HasScrappableItems() then
+		return
+	end
+
+	C_Timer.After(
+		0.1,
+		function()
+			self:AutoScrapBatch()
+		end
+	)
+end
+
+---Initialize scrapping system
+function module:Init()
+	-- Wait for scrapping machine UI to load
+	if not C_AddOns.IsAddOnLoaded('Blizzard_ScrappingMachineUI') then
+		local frame = CreateFrame('Frame')
+		frame:RegisterEvent('ADDON_LOADED')
+		frame:SetScript(
+			'OnEvent',
+			function(_, event, addonName)
+				if addonName == 'Blizzard_ScrappingMachineUI' then
+					frame:UnregisterEvent('ADDON_LOADED')
+					module:InitUI()
+				end
+			end
+		)
+	else
+		self:InitUI()
+	end
+end
+
+-- Store UI reference at module level
+module.KNOWN_AFFIXES = KNOWN_AFFIXES
+function module:InitUI()
+	if not ScrappingMachineFrame then
+		return
+	end
+
+	-- Reset button
+	local resetButton = CreateFrame('Button', nil, ScrappingMachineFrame)
+	resetButton:SetSize(24, 24)
+	resetButton:SetPoint('TOPRIGHT', ScrappingMachineFrame, 'TOPRIGHT', -10, -25)
+	local resetTexture = resetButton:CreateTexture(nil, 'BACKGROUND')
+	resetTexture:SetAllPoints()
+	resetTexture:SetAtlas('GM-raidMarker-reset')
+	resetButton:SetScript(
+		'OnClick',
+		function()
+			C_ScrappingMachineUI.RemoveAllScrapItems()
+		end
+	)
+
+	-- Side panel frame
+	local frame = CreateFrame('Frame', 'LibsRemixPowerLevelScrappingUI', ScrappingMachineFrame, 'PortraitFrameTemplate')
+	ButtonFrameTemplate_HidePortrait(frame)
+	frame:SetSize(275, ScrappingMachineFrame:GetHeight())
+	frame:SetPoint('TOPLEFT', ScrappingMachineFrame, 'TOPRIGHT', 5, 0)
+	if frame.PortraitContainer then
+		frame.PortraitContainer:Hide()
+	end
+	if frame.portrait then
+		frame.portrait:Hide()
+	end
+	frame:SetTitle("|cffffffffLib's|r Auto Scrapper")
+	self.uiFrame = frame
+
+	-- Quality label
+	local qualityLabel = frame:CreateFontString(nil, 'ARTWORK', 'GameFontNormalSmall')
+	qualityLabel:SetPoint('TOPLEFT', frame, 'TOPLEFT', 15, -30)
+	qualityLabel:SetText('Max Quality:')
+
+	-- Quality dropdown
+	local qualityTexts = {
+		[Enum.ItemQuality.Common] = '|cffFFFFFFCommon|r',
+		[Enum.ItemQuality.Uncommon] = '|cff1EFF00Uncommon|r',
+		[Enum.ItemQuality.Rare] = '|cff0070DDRare|r',
+		[Enum.ItemQuality.Epic] = '|cffA335EEEpic|r'
+	}
+
+	local qualityDropdown = CreateFrame('Frame', 'LibsRemixPowerLevelQualityDropdown', frame, 'UIDropDownMenuTemplate')
+	qualityDropdown:SetPoint('TOPLEFT', qualityLabel, 'BOTTOMLEFT', -15, -5)
+	UIDropDownMenu_SetWidth(qualityDropdown, 200)
+
+	-- Initialize dropdown with function that gets called each time it opens
+	UIDropDownMenu_Initialize(
+		qualityDropdown,
+		function(_, level)
+			local qualities = {
+				{text = '|cffFFFFFFCommon|r', value = Enum.ItemQuality.Common},
+				{text = '|cff1EFF00Uncommon|r', value = Enum.ItemQuality.Uncommon},
+				{text = '|cff0070DDRare|r', value = Enum.ItemQuality.Rare},
+				{text = '|cffA335EEEpic|r', value = Enum.ItemQuality.Epic}
+			}
+			for _, quality in ipairs(qualities) do
+				local info = UIDropDownMenu_CreateInfo()
+				info.text = quality.text
+				info.value = quality.value
+				info.checked = module.DB.maxQuality == quality.value
+				info.func = function()
+					module.DB.maxQuality = quality.value
+					UIDropDownMenu_SetText(qualityDropdown, quality.text)
+					module:RefreshItemList()
+				end
+				UIDropDownMenu_AddButton(info, level)
+			end
+		end
+	)
+
+	-- Set initial text from saved value
+	UIDropDownMenu_SetText(qualityDropdown, qualityTexts[module.DB.maxQuality])
+
+	-- Min level label
+	local minLevelLabel = frame:CreateFontString(nil, 'ARTWORK', 'GameFontNormalSmall')
+	minLevelLabel:SetPoint('TOPLEFT', qualityDropdown, 'BOTTOMLEFT', 15, -10)
+	minLevelLabel:SetText('Min Item Level Difference:')
+
+	-- Min level editbox
+	local minLevelBox = CreateFrame('EditBox', nil, frame, 'InputBoxTemplate')
+	minLevelBox:SetPoint('TOPLEFT', minLevelLabel, 'BOTTOMLEFT', 5, -5)
+	minLevelBox:SetSize(50, 20)
+	minLevelBox:SetAutoFocus(false)
+	minLevelBox:SetMaxLetters(3)
+	minLevelBox:SetNumeric(true)
+	minLevelBox:SetText(tostring(module.DB.minLevelDiff))
+	minLevelBox:SetScript(
+		'OnTextChanged',
+		function(editBox, userInput)
+			if userInput then
+				local num = tonumber(editBox:GetText())
+				if num then
+					module.DB.minLevelDiff = num
+					module:RefreshItemList()
+				end
+			end
+		end
+	)
+
+	-- Affix blacklist button (moved to right of min level box)
+	local affixButton = CreateFrame('Button', nil, frame, 'UIPanelButtonTemplate')
+	affixButton:SetSize(120, 22)
+	affixButton:SetPoint('LEFT', minLevelBox, 'RIGHT', 10, 0)
+	affixButton:SetText('Affix Blacklist...')
+	affixButton:SetScript(
+		'OnClick',
+		function()
+			self:ShowAffixBlacklistWindow()
+		end
+	)
+
+	-- Auto scrap checkbox
+	local autoScrapCheck = CreateFrame('CheckButton', nil, frame, 'UICheckButtonTemplate')
+	autoScrapCheck:SetPoint('TOPLEFT', minLevelBox, 'BOTTOMLEFT', -5, -10)
+	autoScrapCheck.text:SetText('Auto Scrap')
+	autoScrapCheck:SetChecked(module.DB.autoScrap)
+	autoScrapCheck:SetScript(
+		'OnClick',
+		function(checkbox)
+			module.DB.autoScrap = checkbox:GetChecked()
+			if checkbox:GetChecked() then
+				module:AutoScrapBatch()
+			end
+		end
+	)
+
+	-- Scroll frame for items (increased size by 30 pixels)
+	local scrollFrame = CreateFrame('ScrollFrame', nil, frame, 'UIPanelScrollFrameTemplate')
+	scrollFrame:SetPoint('TOPLEFT', autoScrapCheck, 'BOTTOMLEFT', 5, -10)
+	scrollFrame:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', -28, 15)
+
+	local scrollChild = CreateFrame('Frame', nil, scrollFrame)
+	scrollFrame:SetScrollChild(scrollChild)
+	scrollChild:SetSize(scrollFrame:GetWidth(), 1)
+	self.scrollChild = scrollChild
+	self.itemButtons = {}
+
+	-- Hook events
+	ScrappingMachineFrame:HookScript(
+		'OnShow',
+		function()
+			frame:Show()
+			self:RefreshItemList()
+			self:AutoScrap()
+		end
+	)
+
+	ScrappingMachineFrame:HookScript(
+		'OnHide',
+		function()
+			frame:Hide()
+			-- Also hide affix blacklist window when scrapping UI closes
+			if self.affixWindow then
+				self.affixWindow:Hide()
+			end
+		end
+	)
+
+	LibRTC:RegisterEvent(
+		'BAG_UPDATE_DELAYED',
+		function()
+			if ScrappingMachineFrame:IsShown() then
+				self:RefreshItemList()
+			end
+		end
+	)
+
+	LibRTC:RegisterEvent(
+		'SCRAPPING_MACHINE_PENDING_ITEM_CHANGED',
+		function()
+			self:RefreshItemList()
+			self:AutoScrap()
+		end
+	)
+end
+
+---Get map of pending items
+---@return table<string, boolean>
+function module:GetMappedPendingItems()
+	local pendingMap = {}
+	for i = 1, SCRAPPING_MACHINE_MAX_SLOTS do
+		local itemLoc = C_ScrappingMachineUI.GetCurrentPendingScrapItemLocationByIndex(i - 1)
+		if itemLoc and itemLoc:IsValid() then
+			local bagID, slotID = itemLoc:GetBagAndSlot()
+			pendingMap[bagID .. '-' .. slotID] = true
+		end
+	end
+	return pendingMap
+end
+
+---Refresh the item list display
+function module:RefreshItemList()
+	if not self.scrollChild then
+		return
+	end
+
+	local items = self:GetFilteredScrappableItems()
+	local pendingMap = self:GetMappedPendingItems()
+
+	local itemsPerRow = 6
+	local buttonSize = 35
+	local padding = 2
+	local minRows = 3
+	local minSlots = itemsPerRow * minRows
+
+	-- Calculate total slots to show (at least 3 rows)
+	local totalSlots = math.max(#items, minSlots)
+
+	-- Create/update buttons for all slots (items + empty)
+	for i = 1, totalSlots do
+		local btn = self.itemButtons[i]
+		if not btn then
+			btn = CreateFrame('Button', nil, self.scrollChild)
+			btn:SetSize(buttonSize, buttonSize)
+
+			btn.bg = btn:CreateTexture(nil, 'BACKGROUND')
+			btn.bg:SetAllPoints()
+			btn.bg:SetAtlas('bags-item-slot64')
+
+			btn.icon = btn:CreateTexture(nil, 'ARTWORK')
+			btn.icon:SetAllPoints()
+
+			btn:SetScript(
+				'OnClick',
+				function(_, button)
+					if btn.bagID and btn.slotID then
+						if button == 'LeftButton' or button == 'RightButton' then
+							self:ScrapItemFromBag(btn.bagID, btn.slotID)
+						end
+					end
+				end
+			)
+			btn:RegisterForClicks('LeftButtonUp', 'RightButtonUp')
+
+			btn:SetScript(
+				'OnEnter',
+				function()
+					if btn.bagID and btn.slotID then
+						GameTooltip:SetOwner(btn, 'ANCHOR_RIGHT')
+						GameTooltip:SetBagItem(btn.bagID, btn.slotID)
+						GameTooltip:Show()
+					end
+				end
+			)
+
+			btn:SetScript(
+				'OnLeave',
+				function()
+					GameTooltip:Hide()
+				end
+			)
+
+			self.itemButtons[i] = btn
+		end
+
+		-- Position in grid
+		local row = math.floor((i - 1) / itemsPerRow)
+		local col = (i - 1) % itemsPerRow
+		local xOffset = col * (buttonSize + padding)
+		local yOffset = -row * (buttonSize + padding)
+		btn:ClearAllPoints()
+		btn:SetPoint('TOPLEFT', self.scrollChild, 'TOPLEFT', xOffset, yOffset)
+
+		-- Update button with item data if available
+		local item = items[i]
+		if item then
+			btn.bagID = item.bagID
+			btn.slotID = item.slotID
+			btn.icon:SetTexture(C_Item.GetItemIconByID(item.link))
+			btn.icon:Show()
+
+			-- Desaturate if already pending
+			local isPending = pendingMap[item.bagID .. '-' .. item.slotID]
+			btn.icon:SetDesaturated(isPending)
+		else
+			-- Empty slot
+			btn.bagID = nil
+			btn.slotID = nil
+			btn.icon:SetTexture(nil)
+			btn.icon:Hide()
+		end
+
+		btn:Show()
+	end
+
+	-- Hide any extra buttons beyond what we need
+	for i = totalSlots + 1, #self.itemButtons do
+		self.itemButtons[i]:Hide()
+	end
+
+	-- Update scroll child height to fit all slots
+	local totalRows = math.ceil(totalSlots / itemsPerRow)
+	self.scrollChild:SetHeight(totalRows * (buttonSize + padding))
+end
+
+---Show the affix blacklist management window
+function module:ShowAffixBlacklistWindow()
+	-- Create window if it doesn't exist
+	if not self.affixWindow then
+		local window = CreateFrame('Frame', 'LibsRemixPowerLevelAffixWindow', UIParent, 'PortraitFrameTemplate')
+		ButtonFrameTemplate_HidePortrait(window)
+		window:SetSize(400, 500)
+
+		-- Anchor to the right side of the scrapping UI panel
+		if self.uiFrame then
+			window:SetPoint('TOPLEFT', self.uiFrame, 'TOPRIGHT', 5, 0)
+		else
+			window:SetPoint('CENTER')
+		end
+
+		window:SetMovable(true)
+		window:EnableMouse(true)
+		window:RegisterForDrag('LeftButton')
+		window:SetScript(
+			'OnDragStart',
+			function(frame)
+				frame:StartMoving()
+			end
+		)
+		window:SetScript(
+			'OnDragStop',
+			function(frame)
+				frame:StopMovingOrSizing()
+			end
+		)
+
+		if window.PortraitContainer then
+			window.PortraitContainer:Hide()
+		end
+		if window.portrait then
+			window.portrait:Hide()
+		end
+		if window.TitleText then
+			window.TitleText:SetText('Affix Blacklist')
+		elseif window.TitleContainer and window.TitleContainer.TitleText then
+			window.TitleContainer.TitleText:SetText('Affix Blacklist')
+		end
+
+		-- Instructions
+		local instructions = window:CreateFontString(nil, 'ARTWORK', 'GameFontNormal')
+		instructions:SetPoint('TOPLEFT', 15, -30)
+		instructions:SetPoint('TOPRIGHT', -15, -30)
+		instructions:SetJustifyH('LEFT')
+		instructions:SetText('Items with these stats/affixes will be excluded from auto-scrapping.\nSelect from known affixes or enter custom text.')
+
+		-- Quick add buttons for common stats
+		local quickAddLabel = window:CreateFontString(nil, 'ARTWORK', 'GameFontNormalSmall')
+		quickAddLabel:SetPoint('TOPLEFT', instructions, 'BOTTOMLEFT', 0, -15)
+		quickAddLabel:SetText('Common Stats:')
+
+		local quickStats = {'Speed', 'Leech', 'Avoidance'}
+		local lastBtn = nil
+		for i, stat in ipairs(quickStats) do
+			local btn = CreateFrame('Button', nil, window, 'UIPanelButtonTemplate')
+			btn:SetSize(80, 22)
+			if i == 1 then
+				btn:SetPoint('TOPLEFT', quickAddLabel, 'BOTTOMLEFT', 0, -5)
+			else
+				btn:SetPoint('LEFT', lastBtn, 'RIGHT', 5, 0)
+			end
+			btn:SetText(stat)
+			btn:SetScript(
+				'OnClick',
+				function()
+					module.DB.affixBlacklist[stat] = true
+					self:RefreshAffixList()
+					self:RefreshItemList()
+				end
+			)
+			lastBtn = btn
+		end
+
+		-- Dropdown for known affixes
+		local affixLabel = window:CreateFontString(nil, 'ARTWORK', 'GameFontNormalSmall')
+		affixLabel:SetPoint('TOPLEFT', quickAddLabel, 'BOTTOMLEFT', 0, -35)
+		affixLabel:SetText('Known Affixes:')
+
+		local affixDropdown = CreateFrame('Frame', nil, window, 'UIDropDownMenuTemplate')
+		affixDropdown:SetPoint('TOPLEFT', affixLabel, 'BOTTOMLEFT', -15, -5)
+		UIDropDownMenu_SetWidth(affixDropdown, 200)
+		UIDropDownMenu_SetText(affixDropdown, 'Select...')
+
+		UIDropDownMenu_Initialize(
+			affixDropdown,
+			function(_, level)
+				for _, affix in ipairs(KNOWN_AFFIXES) do
+					local info = UIDropDownMenu_CreateInfo()
+					info.text = affix
+					info.func = function()
+						module.DB.affixBlacklist[affix] = true
+						self:RefreshAffixList()
+						self:RefreshItemList()
+					end
+					UIDropDownMenu_AddButton(info, level)
+				end
+			end
+		)
+
+		-- Custom text entry
+		local customLabel = window:CreateFontString(nil, 'ARTWORK', 'GameFontNormalSmall')
+		customLabel:SetPoint('TOPLEFT', affixDropdown, 'BOTTOMLEFT', 15, -10)
+		customLabel:SetText('Custom Text:')
+
+		local addBox = CreateFrame('EditBox', nil, window, 'InputBoxTemplate')
+		addBox:SetPoint('TOPLEFT', customLabel, 'BOTTOMLEFT', 5, -5)
+		addBox:SetPoint('TOPRIGHT', window, 'TOPRIGHT', -100, -235)
+		addBox:SetHeight(20)
+		addBox:SetAutoFocus(false)
+		addBox:SetMaxLetters(50)
+
+		local addButton = CreateFrame('Button', nil, window, 'UIPanelButtonTemplate')
+		addButton:SetSize(80, 22)
+		addButton:SetPoint('LEFT', addBox, 'RIGHT', 5, 0)
+		addButton:SetText('Add')
+		addButton:SetScript(
+			'OnClick',
+			function()
+				local text = addBox:GetText():trim()
+				if text ~= '' then
+					module.DB.affixBlacklist[text] = true
+					addBox:SetText('')
+					self:RefreshAffixList()
+					self:RefreshItemList()
+				end
+			end
+		)
+
+		-- Scroll frame for blacklist
+		local scrollFrame = CreateFrame('ScrollFrame', nil, window, 'UIPanelScrollFrameTemplate')
+		scrollFrame:SetPoint('TOPLEFT', addBox, 'BOTTOMLEFT', -5, -10)
+		scrollFrame:SetPoint('BOTTOMRIGHT', window, 'BOTTOMRIGHT', -28, 50)
+
+		local scrollChild = CreateFrame('Frame', nil, scrollFrame)
+		scrollFrame:SetScrollChild(scrollChild)
+		scrollChild:SetSize(scrollFrame:GetWidth(), 1)
+
+		window.scrollFrame = scrollFrame
+		window.scrollChild = scrollChild
+		window.affixButtons = {}
+
+		-- Close button behavior
+		window.CloseButton:SetScript(
+			'OnClick',
+			function()
+				window:Hide()
+			end
+		)
+
+		self.affixWindow = window
+	end
+
+	self:RefreshAffixList()
+	self.affixWindow:Show()
+end
+
+---Refresh the affix blacklist display
+function module:RefreshAffixList()
+	if not self.affixWindow then
+		return
+	end
+
+	local window = self.affixWindow
+	local affixes = {}
+
+	-- Build sorted list of affixes
+	for affix in pairs(module.DB.affixBlacklist or {}) do
+		table.insert(affixes, affix)
+	end
+	table.sort(affixes)
+
+	-- Hide existing buttons
+	for _, btn in ipairs(window.affixButtons) do
+		btn:Hide()
+	end
+
+	-- Create/update buttons
+	local yOffset = 0
+	for i, affix in ipairs(affixes) do
+		local btn = window.affixButtons[i]
+		if not btn then
+			btn = CreateFrame('Frame', nil, window.scrollChild)
+			btn:SetSize(window.scrollChild:GetWidth(), 24)
+
+			btn.text = btn:CreateFontString(nil, 'ARTWORK', 'GameFontNormal')
+			btn.text:SetPoint('LEFT', 5, 0)
+			btn.text:SetPoint('RIGHT', -30, 0)
+			btn.text:SetJustifyH('LEFT')
+
+			btn.deleteBtn = CreateFrame('Button', nil, btn, 'UIPanelButtonTemplate')
+			btn.deleteBtn:SetSize(65, 20)
+			btn.deleteBtn:SetPoint('RIGHT', -5, 0)
+			btn.deleteBtn:SetText('Remove')
+
+			window.affixButtons[i] = btn
+		end
+
+		btn:SetPoint('TOPLEFT', 0, -yOffset)
+		btn.text:SetText(affix)
+		btn.deleteBtn:SetScript(
+			'OnClick',
+			function()
+				module.DB.affixBlacklist[affix] = nil
+				self:RefreshAffixList()
+				self:RefreshItemList()
+			end
+		)
+		btn:Show()
+
+		yOffset = yOffset + 24
+	end
+
+	-- Update scroll height
+	window.scrollChild:SetHeight(math.max(yOffset, 1))
+end
