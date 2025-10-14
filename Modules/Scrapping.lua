@@ -483,7 +483,7 @@ function module:InitUI()
 
 	-- Min level label
 	local minLevelLabel = frame:CreateFontString(nil, 'ARTWORK', 'GameFontNormalSmall')
-	minLevelLabel:SetPoint('TOPLEFT', qualityDropdown, 'BOTTOMLEFT', 15, -10)
+	minLevelLabel:SetPoint('TOPLEFT', qualityDropdown, 'BOTTOMLEFT', 15, -5)
 	minLevelLabel:SetText('Min Item Level Difference:')
 
 	-- Min level editbox
@@ -521,7 +521,7 @@ function module:InitUI()
 
 	-- Auto scrap checkbox
 	local autoScrapCheck = CreateFrame('CheckButton', nil, frame, 'UICheckButtonTemplate')
-	autoScrapCheck:SetPoint('TOPLEFT', minLevelBox, 'BOTTOMLEFT', -5, -10)
+	autoScrapCheck:SetPoint('TOPLEFT', minLevelBox, 'BOTTOMLEFT', -5, -5)
 	autoScrapCheck.text:SetText('Auto Scrap')
 	autoScrapCheck:SetChecked(module.DB.autoScrap)
 	autoScrapCheck:SetScript(
@@ -537,8 +537,8 @@ function module:InitUI()
 
 	-- Scroll frame for items with modern scrollbar and background
 	local scrollFrame = CreateFrame('ScrollFrame', nil, frame)
-	scrollFrame:SetPoint('TOPLEFT', autoScrapCheck, 'BOTTOMLEFT', 5, -10)
-	scrollFrame:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', -10, 15)
+	scrollFrame:SetPoint('TOPLEFT', autoScrapCheck, 'BOTTOMLEFT', 5, -5)
+	scrollFrame:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', -25, 10)
 
 	-- Add background texture
 	scrollFrame.bg = scrollFrame:CreateTexture(nil, 'BACKGROUND')
@@ -608,6 +608,15 @@ function module:GetMappedPendingItems()
 		end
 	end
 	return pendingMap
+end
+
+---Clear all pending scrap items (called when filters change)
+function module:ClearFilteredPendingItems()
+	-- When filters change, just clear all pending items like Blizzard does
+	if LibRTC.logger then
+		LibRTC.logger.info('ClearFilteredPendingItems called - clearing all pending items')
+	end
+	C_ScrappingMachineUI.RemoveAllScrapItems()
 end
 
 ---Update auto scrap checkbox text with item count
@@ -739,7 +748,7 @@ function module:ShowAffixBlacklistWindow()
 	if not self.affixWindow then
 		local window = CreateFrame('Frame', 'LibsRemixPowerLevelAffixWindow', UIParent, 'PortraitFrameTemplate')
 		ButtonFrameTemplate_HidePortrait(window)
-		window:SetSize(400, 500)
+		window:SetSize(350, 400)
 
 		-- Anchor to the right side of the scrapping UI panel
 		if self.uiFrame then
@@ -791,7 +800,7 @@ function module:ShowAffixBlacklistWindow()
 		local statsDropdown = CreateFrame('DropdownButton', nil, window, 'WowStyle1FilterDropdownTemplate')
 		statsDropdown:SetPoint('TOPLEFT', statsLabel, 'BOTTOMLEFT', 0, -5)
 		statsDropdown:SetSize(200, 22)
-		statsDropdown:SetText('Add Stat...')
+		statsDropdown:SetText('Add Stat')
 
 		-- Setup stats dropdown generator
 		statsDropdown:SetupMenu(
@@ -818,13 +827,13 @@ function module:ShowAffixBlacklistWindow()
 
 		-- Affixes dropdown
 		local affixLabel = window:CreateFontString(nil, 'ARTWORK', 'GameFontNormalSmall')
-		affixLabel:SetPoint('TOPLEFT', statsDropdown, 'BOTTOMLEFT', 0, -10)
+		affixLabel:SetPoint('LEFT', statsLabel, 'RIGHT', 120, 0)
 		affixLabel:SetText('Affixes:')
 
 		local affixDropdown = CreateFrame('DropdownButton', nil, window, 'WowStyle1FilterDropdownTemplate')
 		affixDropdown:SetPoint('TOPLEFT', affixLabel, 'BOTTOMLEFT', 0, -5)
 		affixDropdown:SetSize(200, 22)
-		affixDropdown:SetText('Add Affix...')
+		affixDropdown:SetText('Add Affix')
 
 		-- Setup affix dropdown generator
 		affixDropdown:SetupMenu(
@@ -872,7 +881,7 @@ function module:ShowAffixBlacklistWindow()
 
 		-- Custom text entry
 		local customLabel = window:CreateFontString(nil, 'ARTWORK', 'GameFontNormalSmall')
-		customLabel:SetPoint('TOPLEFT', affixDropdown, 'BOTTOMLEFT', 0, -10)
+		customLabel:SetPoint('TOPLEFT', statsDropdown, 'BOTTOMLEFT', 0, -10)
 		customLabel:SetText('Custom Text:')
 
 		local addBox = CreateFrame('EditBox', nil, window, 'InputBoxTemplate')
@@ -893,6 +902,7 @@ function module:ShowAffixBlacklistWindow()
 				if text ~= '' then
 					module.DB.affixBlacklist[text] = true
 					addBox:SetText('')
+					self:ClearFilteredPendingItems()
 					self:RefreshBlacklistDisplay()
 					self:RefreshItemList()
 				end
@@ -902,7 +912,7 @@ function module:ShowAffixBlacklistWindow()
 		-- Scroll frame for blacklist display with modern scrollbar and background
 		local scrollFrame = CreateFrame('ScrollFrame', nil, window)
 		scrollFrame:SetPoint('TOPLEFT', addBox, 'BOTTOMLEFT', -5, -10)
-		scrollFrame:SetPoint('BOTTOMRIGHT', window, 'BOTTOMRIGHT', -10, 50)
+		scrollFrame:SetPoint('BOTTOMRIGHT', window, 'BOTTOMRIGHT', -25, 10)
 
 		-- Add background texture
 		scrollFrame.bg = scrollFrame:CreateTexture(nil, 'BACKGROUND')
@@ -1031,6 +1041,7 @@ function module:RefreshBlacklistDisplay()
 			'OnClick',
 			function()
 				module.DB.affixBlacklist[item] = nil
+				self:ClearFilteredPendingItems()
 				self:RefreshBlacklistDisplay()
 				self:RefreshItemList()
 			end
