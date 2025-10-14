@@ -328,13 +328,22 @@ function module:HasBlacklistedAffix(itemLink)
 	for tooltipLine, _ in pairs(affixes) do
 		for blacklistedText in pairs(self.DB.affixBlacklist) do
 			-- Check if blacklisted text appears anywhere in this tooltip line
-			if tooltipLine:find(blacklistedText, 1, true) then
+			if LibRTC.logger then
+				LibRTC.logger.debug("Checking if '" .. blacklistedText .. "' is in '" .. tooltipLine .. "'")
+			end
+
+			local found = tooltipLine:find(blacklistedText, 1, true)
+			if found then
 				if LibRTC.logger then
-					LibRTC.logger.info("Match found! '" .. blacklistedText .. "' in '" .. tooltipLine .. "'")
+					LibRTC.logger.info("MATCH FOUND! '" .. blacklistedText .. "' found in '" .. tooltipLine .. "' at position " .. tostring(found))
 				end
 				return true
 			end
 		end
+	end
+
+	if LibRTC.logger then
+		LibRTC.logger.debug("No blacklist matches found for this item")
 	end
 
 	return false
