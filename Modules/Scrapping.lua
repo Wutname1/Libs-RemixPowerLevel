@@ -294,17 +294,17 @@ function module:HasBlacklistedAffix(itemLink)
 
 	-- Debug logging
 	if LibRTC.logger then
-		LibRTC.logger("Scanning item: " .. tostring(itemLink), "debug")
+		LibRTC.logger.debug("Scanning item: " .. tostring(itemLink))
 
 		local blacklistItems = {}
 		for key in pairs(self.DB.affixBlacklist) do
 			table.insert(blacklistItems, key)
 		end
-		LibRTC.logger("Blacklist contains: " .. table.concat(blacklistItems, ", "), "debug")
+		LibRTC.logger.debug("Blacklist contains: " .. table.concat(blacklistItems, ", "))
 
-		LibRTC.logger("Tooltip lines found:", "debug")
+		LibRTC.logger.debug("Tooltip lines found:")
 		for tooltipLine, _ in pairs(affixes) do
-			LibRTC.logger("  - " .. tooltipLine, "debug")
+			LibRTC.logger.debug("  - " .. tooltipLine)
 		end
 	end
 
@@ -314,7 +314,7 @@ function module:HasBlacklistedAffix(itemLink)
 			-- Check if blacklisted text appears anywhere in this tooltip line
 			if tooltipLine:find(blacklistedText, 1, true) then
 				if LibRTC.logger then
-					LibRTC.logger("Match found! '" .. blacklistedText .. "' in '" .. tooltipLine .. "'", "info")
+					LibRTC.logger.info("Match found! '" .. blacklistedText .. "' in '" .. tooltipLine .. "'")
 				end
 				return true
 			end
