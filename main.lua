@@ -372,6 +372,11 @@ function LibRTC:OnInitialize()
 end
 
 function LibRTC:OnEnable()
+	-- Log addon version/load for debugging
+	if self.logger then
+		self.logger.info("Libs-RemixPowerLevel loaded - commit e1e6085")
+	end
+
 	if IsTimerunnerMode() then
 		-- Add tooltip processor
 		TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, TooltipProcessor)
