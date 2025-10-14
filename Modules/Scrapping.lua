@@ -75,10 +75,6 @@ local DbDefaults = {
 	affixBlacklist = {}
 }
 
--- Debug logging counter - limit to first 10 items
-local debugLogCount = 0
-local MAX_DEBUG_LOGS = 10
-
 -- Tooltip scanner for detecting affixes
 local scannerTooltip = CreateFrame('GameTooltip', 'LibsRemixPowerLevelScannerTooltip', nil, 'GameTooltipTemplate')
 scannerTooltip:SetOwner(UIParent, 'ANCHOR_NONE')
@@ -90,7 +86,7 @@ function module:OnInitialize()
 		DbDefaults.autoScrap = true
 	end
 
-	module.Database = LibRTC.db:RegisterNamespace('Scrapping', {profile = DbDefaults})
+	module.Database = LibRTC.dbobj:RegisterNamespace('Scrapping', {profile = DbDefaults})
 	module.DB = module.Database.profile ---@type LibRTC.Module.Scrapping.DB
 
 	-- Add module options to parent addon options table
@@ -240,54 +236,25 @@ function module:GetScrappableItems()
 	return scrappableItems
 end
 
----Scan item tooltip to detect affixes and their icons
+---Scan item tooltip to detect affixes
 ---@param itemLink string
----@return table<string, number|nil> Map of affix text to icon fileID
+---@return table<string, boolean>
 function module:ScanItemAffixes(itemLink)
 	local affixes = {}
 	if not itemLink then
 		return affixes
 	end
 
-	scannerTooltip:SetOwner(UIParent, 'ANCHOR_NONE')
 	scannerTooltip:ClearLines()
 	scannerTooltip:SetHyperlink(itemLink)
 
-	local numLines = scannerTooltip:NumLines()
-
-	-- Debug: log if we're getting 0 lines
-	if LibRTC.logger and debugLogCount == 1 then
-		LibRTC.logger.debug("ScanItemAffixes raw: NumLines=" .. tostring(numLines) .. " for " .. tostring(itemLink))
-	end
-
-	-- Scan all tooltip lines for text and icons
-	for i = 1, numLines do
+	-- Scan all tooltip lines
+	for i = 1, scannerTooltip:NumLines() do
 		local line = _G['LibsRemixPowerLevelScannerTooltipTextLeft' .. i]
-
 		if line then
 			local text = line:GetText()
-
 			if text then
-				-- Try to get icon from the line's text
-				local iconFileID = nil
-				local regions = {scannerTooltip:GetRegions()}
-				for _, region in ipairs(regions) do
-					if region:GetObjectType() == 'Texture' then
-						local point = region:GetPoint()
-						if point then
-							local _, _, _, _, _, _, _, _, top = region:GetPoint()
-							local lineTop = line:GetTop()
-							-- Check if texture is on the same line (within 2 pixels)
-							if lineTop and top and math.abs(lineTop - top) < 2 then
-								---@diagnostic disable-next-line: undefined-field
-								iconFileID = region:GetTexture()
-								break
-							end
-						end
-					end
-				end
-
-				affixes[text] = iconFileID
+				affixes[text] = true
 			end
 		end
 	end
@@ -299,57 +266,17 @@ end
 ---@param itemLink string
 ---@return boolean
 function module:HasBlacklistedAffix(itemLink)
-	if not self.DB.affixBlacklist or not next(self.DB.affixBlacklist) then
+	if not self.DB.affixBlacklist then
 		return false
 	end
 
-	-- Scan tooltip lines for text
 	local affixes = self:ScanItemAffixes(itemLink)
-
-	-- Debug logging (limited to first MAX_DEBUG_LOGS items)
-	local shouldLog = LibRTC.logger and debugLogCount < MAX_DEBUG_LOGS
-	if shouldLog then
-		debugLogCount = debugLogCount + 1
-
-		LibRTC.logger.debug("=== Scanning item #" .. debugLogCount .. ": " .. tostring(itemLink))
-
-		local blacklistItems = {}
-		for key in pairs(self.DB.affixBlacklist) do
-			table.insert(blacklistItems, key)
-		end
-		LibRTC.logger.debug("Blacklist contains: " .. table.concat(blacklistItems, ", "))
-
-		local affixCount = 0
-		for _ in pairs(affixes) do
-			affixCount = affixCount + 1
-		end
-		LibRTC.logger.debug("Found " .. affixCount .. " tooltip lines")
-
-		for tooltipLine, _ in pairs(affixes) do
-			LibRTC.logger.debug("  Line: " .. tooltipLine)
-		end
-	end
-
-	-- Check each tooltip line against blacklist
-	for tooltipLine, _ in pairs(affixes) do
-		for blacklistedText in pairs(self.DB.affixBlacklist) do
-			-- Check if blacklisted text appears anywhere in this tooltip line
-			if shouldLog then
-				LibRTC.logger.debug("Checking if '" .. blacklistedText .. "' is in '" .. tooltipLine .. "'")
-			end
-
-			local found = tooltipLine:find(blacklistedText, 1, true)
-			if found then
-				if LibRTC.logger then
-					LibRTC.logger.info("MATCH FOUND! '" .. blacklistedText .. "' found in '" .. tooltipLine .. "' at position " .. tostring(found))
-				end
+	for affixText in pairs(affixes) do
+		for blacklistedAffix in pairs(self.DB.affixBlacklist) do
+			if affixText:find(blacklistedAffix, 1, true) then
 				return true
 			end
 		end
-	end
-
-	if shouldLog then
-		LibRTC.logger.debug("No blacklist matches found for this item")
 	end
 
 	return false
@@ -608,10 +535,21 @@ function module:InitUI()
 	)
 	self.autoScrapCheck = autoScrapCheck
 
-	-- Scroll frame for items (increased size by 30 pixels)
-	local scrollFrame = CreateFrame('ScrollFrame', nil, frame, 'UIPanelScrollFrameTemplate')
+	-- Scroll frame for items with modern scrollbar and background
+	local scrollFrame = CreateFrame('ScrollFrame', nil, frame)
 	scrollFrame:SetPoint('TOPLEFT', autoScrapCheck, 'BOTTOMLEFT', 5, -10)
-	scrollFrame:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', -28, 15)
+	scrollFrame:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', -10, 15)
+
+	-- Add background texture
+	scrollFrame.bg = scrollFrame:CreateTexture(nil, 'BACKGROUND')
+	scrollFrame.bg:SetAllPoints()
+	scrollFrame.bg:SetAtlas('auctionhouse-background-index', true)
+
+	-- Modern minimal scrollbar
+	scrollFrame.ScrollBar = CreateFrame('EventFrame', nil, scrollFrame, 'MinimalScrollBar')
+	scrollFrame.ScrollBar:SetPoint('TOPLEFT', scrollFrame, 'TOPRIGHT', 6, 0)
+	scrollFrame.ScrollBar:SetPoint('BOTTOMLEFT', scrollFrame, 'BOTTOMRIGHT', 6, 0)
+	ScrollUtil.InitScrollFrameWithScrollBar(scrollFrame, scrollFrame.ScrollBar)
 
 	local scrollChild = CreateFrame('Frame', nil, scrollFrame)
 	scrollFrame:SetScrollChild(scrollChild)
@@ -692,9 +630,6 @@ function module:RefreshItemList()
 	if not self.scrollChild then
 		return
 	end
-
-	-- Reset debug log counter for new refresh
-	debugLogCount = 0
 
 	local items = self:GetFilteredScrappableItems()
 	local pendingMap = self:GetMappedPendingItems()
@@ -920,13 +855,15 @@ function module:ShowAffixBlacklistWindow()
 						end
 					)
 					if icon then
-						button:AddInitializer(function(btn)
-							local iconTexture = btn:AttachTexture()
-							iconTexture:SetTexture(icon)
-							iconTexture:SetSize(16, 16)
-							iconTexture:SetPoint("LEFT", 4, 0)
-							btn.fontString:SetPoint("LEFT", 24, 0)
-						end)
+						button:AddInitializer(
+							function(btn)
+								local iconTexture = btn:AttachTexture()
+								iconTexture:SetTexture(icon)
+								iconTexture:SetSize(16, 16)
+								iconTexture:SetPoint('LEFT', 4, 0)
+								btn.fontString:SetPoint('LEFT', 24, 0)
+							end
+						)
 					end
 					button:SetEnabled(not isBlacklisted)
 				end
@@ -962,10 +899,21 @@ function module:ShowAffixBlacklistWindow()
 			end
 		)
 
-		-- Scroll frame for blacklist display
-		local scrollFrame = CreateFrame('ScrollFrame', nil, window, 'UIPanelScrollFrameTemplate')
+		-- Scroll frame for blacklist display with modern scrollbar and background
+		local scrollFrame = CreateFrame('ScrollFrame', nil, window)
 		scrollFrame:SetPoint('TOPLEFT', addBox, 'BOTTOMLEFT', -5, -10)
-		scrollFrame:SetPoint('BOTTOMRIGHT', window, 'BOTTOMRIGHT', -28, 50)
+		scrollFrame:SetPoint('BOTTOMRIGHT', window, 'BOTTOMRIGHT', -10, 50)
+
+		-- Add background texture
+		scrollFrame.bg = scrollFrame:CreateTexture(nil, 'BACKGROUND')
+		scrollFrame.bg:SetAllPoints()
+		scrollFrame.bg:SetAtlas('auctionhouse-background-index', true)
+
+		-- Modern minimal scrollbar
+		scrollFrame.ScrollBar = CreateFrame('EventFrame', nil, scrollFrame, 'MinimalScrollBar')
+		scrollFrame.ScrollBar:SetPoint('TOPLEFT', scrollFrame, 'TOPRIGHT', 6, 0)
+		scrollFrame.ScrollBar:SetPoint('BOTTOMLEFT', scrollFrame, 'BOTTOMRIGHT', 6, 0)
+		ScrollUtil.InitScrollFrameWithScrollBar(scrollFrame, scrollFrame.ScrollBar)
 
 		local scrollChild = CreateFrame('Frame', nil, scrollFrame)
 		scrollFrame:SetScrollChild(scrollChild)
@@ -1055,14 +1003,20 @@ function module:RefreshBlacklistDisplay()
 				btn.iconButton:Show()
 
 				-- Set up spell tooltip
-				btn.iconButton:SetScript('OnEnter', function()
-					GameTooltip:SetOwner(btn.iconButton, 'ANCHOR_RIGHT')
-					GameTooltip:SetSpellByID(spellID)
-					GameTooltip:Show()
-				end)
-				btn.iconButton:SetScript('OnLeave', function()
-					GameTooltip:Hide()
-				end)
+				btn.iconButton:SetScript(
+					'OnEnter',
+					function()
+						GameTooltip:SetOwner(btn.iconButton, 'ANCHOR_RIGHT')
+						GameTooltip:SetSpellByID(spellID)
+						GameTooltip:Show()
+					end
+				)
+				btn.iconButton:SetScript(
+					'OnLeave',
+					function()
+						GameTooltip:Hide()
+					end
+				)
 			else
 				btn.icon:Hide()
 				btn.iconButton:Hide()

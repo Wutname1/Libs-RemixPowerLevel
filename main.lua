@@ -41,7 +41,7 @@ end
 ---@param self any
 local function TooltipProcessor(self)
 	-- Check if tooltip display is enabled
-	if not LibRTC.db or not LibRTC.db.profile.showInTooltip then
+	if not LibRTC.dbobj or not LibRTC.dbobj.profile.showInTooltip then
 		return
 	end
 
@@ -79,7 +79,7 @@ end
 ---@param unit UnitId
 local function UpdateItemSlotButton(button, unit)
 	-- Check if character screen display is enabled
-	if not LibRTC.db or not LibRTC.db.profile.showInCharacterScreen then
+	if not LibRTC.dbobj or not LibRTC.dbobj.profile.showInCharacterScreen then
 		-- Hide any existing displays
 		if button.threadCount then
 			button.threadCount:SetText('')
@@ -228,10 +228,10 @@ local function GetOptions()
 		name = "Lib's - Remix Power Level",
 		type = 'group',
 		get = function(info)
-			return LibRTC.db.profile[info[#info]]
+			return LibRTC.dbobj.profile[info[#info]]
 		end,
 		set = function(info, value)
-			LibRTC.db.profile[info[#info]] = value
+			LibRTC.dbobj.profile[info[#info]] = value
 		end,
 		args = {
 			description = {
@@ -266,10 +266,10 @@ local function GetOptions()
 				order = 21,
 				width = 'full',
 				get = function()
-					return not LibRTC.db.profile.minimap.hide
+					return not LibRTC.dbobj.profile.minimap.hide
 				end,
 				set = function(_, value)
-					LibRTC.db.profile.minimap.hide = not value
+					LibRTC.dbobj.profile.minimap.hide = not value
 					if value then
 						LDBIcon:Show('Libs-RemixPowerLevel')
 					else
@@ -282,27 +282,28 @@ local function GetOptions()
 end
 
 function LibRTC:OnInitialize()
+	---@class LibRTC.DB
+	local databaseDefaults = {
+		showInCharacterScreen = true,
+		showInTooltip = true,
+		minimap = {
+			hide = false
+		}
+	}
 	-- Setup database
-	self.db =
-		LibStub('AceDB-3.0'):New(
-		'LibsRemixPowerLevelDB',
-		{
-			profile = {
-				showInCharacterScreen = true,
-				showInTooltip = true,
-				minimap = {
-					hide = false
-				}
-			}
-		},
-		true
-	)
+	self.dbobj = LibStub('AceDB-3.0'):New('LibsRemixDB', {profile = databaseDefaults}, true)
+	self.db = self.dbobj.profile ---@type LibRTC.DB
 
 	-- Create options table for modules to extend
 	self.OptTable = GetOptions()
 
 	-- Register options with AceConfig
-	LibStub('AceConfig-3.0'):RegisterOptionsTable('Libs-RemixPowerLevel', function() return self.OptTable end)
+	LibStub('AceConfig-3.0'):RegisterOptionsTable(
+		'Libs-RemixPowerLevel',
+		function()
+			return self.OptTable
+		end
+	)
 	LibStub('AceConfigDialog-3.0'):AddToBlizOptions('Libs-RemixPowerLevel', "Lib's - Remix Power Level")
 
 	-- Create LibDataBroker object
@@ -319,7 +320,7 @@ function LibRTC:OnInitialize()
 					Settings.OpenToCategory("Lib's - Remix Power Level")
 				elseif button == 'RightButton' and IsShiftKeyDown() then
 					-- Hide minimap button
-					LibRTC.db.profile.minimap.hide = true
+					LibRTC.dbobj.profile.minimap.hide = true
 					LDBIcon:Hide('Libs-RemixPowerLevel')
 					print('Libs-RemixPowerLevel: Minimap button hidden. Re-enable in addon options.')
 				end
@@ -361,7 +362,7 @@ function LibRTC:OnInitialize()
 	)
 
 	-- Register minimap icon
-	LDBIcon:Register('Libs-RemixPowerLevel', ldbObject, self.db.profile.minimap)
+	LDBIcon:Register('Libs-RemixPowerLevel', ldbObject, self.db.minimap)
 
 	-- Register slash command to open options
 	SLASH_REMIXPOWERLEVEL1 = '/rpl'
@@ -374,7 +375,7 @@ end
 function LibRTC:OnEnable()
 	-- Log addon version/load for debugging
 	if self.logger then
-		self.logger.info("Libs-RemixPowerLevel loaded - commit e1e6085")
+		self.logger.info('Libs-RemixPowerLevel loaded - commit e1e6085')
 	end
 
 	if IsTimerunnerMode() then

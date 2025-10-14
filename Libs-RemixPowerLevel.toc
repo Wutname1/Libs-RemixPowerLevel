@@ -5,6 +5,7 @@
 ## Version: @project-version@
 ## Author: wutname1
 ## OptionalDeps: Libs-AddonTools
+## SavedVariables: LibsRemixDB
 ## X-Curse-Project-ID: 1023198
 ## X-Wago-ID: vNAe8BNo
 ## X-Github: https://github.com/Wutname1/Libs-RemixPowerLevel
