@@ -8,51 +8,31 @@ module.description = 'Automatically scrap items based on filters'
 -- Constants
 local SCRAPPING_MACHINE_MAX_SLOTS = 9
 
--- Known Legion Remix Affixes/Talents
+-- Known Legion Remix Affixes (alphabetically sorted)
 local KNOWN_AFFIXES = {
-	-- Base Talents
-	'Remix Time',
-	"Nostwin's Impatience",
-	"Eternus's Ambition",
-	"Erus's Aggression",
-	"Momentus's Perseverance",
-	"Moratari's Calculation",
-	-- Nature
-	'Call of the Forest',
-	'Souls of the Claw',
-	'Highmountain Fortitude',
-	'Waking Frenzy',
-	'Dream Weaving',
-	-- Fel
-	'Twisted Crusade',
-	'Touch of Malice',
-	'I am my Scars!',
-	'Call of the Legion',
-	'Felspike',
-	-- Arcane
-	"Naran's Everdisc",
-	'Volatile Magics',
-	'Arcane Aegis',
-	'Arcane Ward',
-	'Temporal Retaliation',
-	'Arcane Inspiration',
-	-- Storm
-	'Tempest Wrath',
-	'Storm Surger',
-	'Brewing Storm',
-	'Thunder Struck',
-	'Churning Waters',
-	-- Holy
-	"Vindicator's Judgment",
-	"Light's Vengeance",
-	"Flight of the Val'kyr",
-	"Xe'ras embrace",
-	'Empyreal Orders',
-	-- Common stats to blacklist
-	'Versatility',
+	['Arcane Aegis'] = 1232720,
+	['Arcane Ward'] = 1242202,
+	['Brewing Storm'] = 1258587,
+	['Highmountain Fortitude'] = 1234683,
+	['I Am My Scars!'] = 1242022,
+	["Light's Vengeance"] = 1251666,
+	['Souls of the Caw'] = 1235159,
+	['Storm Surger'] = 1241854,
+	['Temporal Retaliation'] = 1232262,
+	['Terror From Below'] = 1233595,
+	['Touch of Malice'] = 1242992,
+	['Volatile Magics'] = 1234774
+}
+
+-- Common stats to blacklist (separate dropdown)
+local KNOWN_STATS = {
+	'Avoidance',
 	'Critical Strike',
 	'Haste',
-	'Mastery'
+	'Leech',
+	'Mastery',
+	'Speed',
+	'Versatility'
 }
 
 -- Map inventory types to equipment slots
@@ -256,9 +236,9 @@ function module:GetScrappableItems()
 	return scrappableItems
 end
 
----Scan item tooltip to detect affixes
+---Scan item tooltip to detect affixes and their icons
 ---@param itemLink string
----@return table<string, boolean>
+---@return table<string, number|nil> Map of affix text to icon fileID
 function module:ScanItemAffixes(itemLink)
 	local affixes = {}
 	if not itemLink then
@@ -268,13 +248,32 @@ function module:ScanItemAffixes(itemLink)
 	scannerTooltip:ClearLines()
 	scannerTooltip:SetHyperlink(itemLink)
 
-	-- Scan all tooltip lines
+	-- Scan all tooltip lines for text and icons
 	for i = 1, scannerTooltip:NumLines() do
 		local line = _G['LibsRemixPowerLevelScannerTooltipTextLeft' .. i]
 		if line then
 			local text = line:GetText()
 			if text then
-				affixes[text] = true
+				-- Try to get icon from the line's text
+				local iconFileID = nil
+				local regions = {scannerTooltip:GetRegions()}
+				for _, region in ipairs(regions) do
+					if region:GetObjectType() == 'Texture' then
+						local point = region:GetPoint()
+						if point then
+							local _, _, _, _, _, _, _, _, top = region:GetPoint()
+							local lineTop = line:GetTop()
+							-- Check if texture is on the same line (within 2 pixels)
+							if lineTop and top and math.abs(lineTop - top) < 2 then
+								---@diagnostic disable-next-line: undefined-field
+								iconFileID = region:GetTexture()
+								break
+							end
+						end
+					end
+				end
+
+				affixes[text] = iconFileID
 			end
 		end
 	end
@@ -286,14 +285,37 @@ end
 ---@param itemLink string
 ---@return boolean
 function module:HasBlacklistedAffix(itemLink)
-	if not self.DB.affixBlacklist then
+	if not self.DB.affixBlacklist or not next(self.DB.affixBlacklist) then
 		return false
 	end
 
+	-- Scan tooltip lines for text
 	local affixes = self:ScanItemAffixes(itemLink)
-	for affixText in pairs(affixes) do
-		for blacklistedAffix in pairs(self.DB.affixBlacklist) do
-			if affixText:find(blacklistedAffix, 1, true) then
+
+	-- Debug logging
+	if LibRTC.logger then
+		LibRTC.logger("Scanning item: " .. tostring(itemLink), "debug")
+
+		local blacklistItems = {}
+		for key in pairs(self.DB.affixBlacklist) do
+			table.insert(blacklistItems, key)
+		end
+		LibRTC.logger("Blacklist contains: " .. table.concat(blacklistItems, ", "), "debug")
+
+		LibRTC.logger("Tooltip lines found:", "debug")
+		for tooltipLine, _ in pairs(affixes) do
+			LibRTC.logger("  - " .. tooltipLine, "debug")
+		end
+	end
+
+	-- Check each tooltip line against blacklist
+	for tooltipLine, _ in pairs(affixes) do
+		for blacklistedText in pairs(self.DB.affixBlacklist) do
+			-- Check if blacklisted text appears anywhere in this tooltip line
+			if tooltipLine:find(blacklistedText, 1, true) then
+				if LibRTC.logger then
+					LibRTC.logger("Match found! '" .. blacklistedText .. "' in '" .. tooltipLine .. "'", "info")
+				end
 				return true
 			end
 		end
@@ -419,8 +441,10 @@ function module:Init()
 	end
 end
 
--- Store UI reference at module level
-module.KNOWN_AFFIXES = KNOWN_AFFIXES
+----------------------------------------------------------------------------------------------------
+-- UI Initialization
+----------------------------------------------------------------------------------------------------
+
 function module:InitUI()
 	if not ScrappingMachineFrame then
 		return
@@ -551,6 +575,7 @@ function module:InitUI()
 			end
 		end
 	)
+	self.autoScrapCheck = autoScrapCheck
 
 	-- Scroll frame for items (increased size by 30 pixels)
 	local scrollFrame = CreateFrame('ScrollFrame', nil, frame, 'UIPanelScrollFrameTemplate')
@@ -616,6 +641,21 @@ function module:GetMappedPendingItems()
 	return pendingMap
 end
 
+---Update auto scrap checkbox text with item count
+function module:UpdateAutoScrapText()
+	if not self.autoScrapCheck then
+		return
+	end
+
+	local items = self:GetFilteredScrappableItems()
+	local count = #items
+	if count > 0 then
+		self.autoScrapCheck.text:SetText(string.format('Auto Scrap - %d items', count))
+	else
+		self.autoScrapCheck.text:SetText('Auto Scrap')
+	end
+end
+
 ---Refresh the item list display
 function module:RefreshItemList()
 	if not self.scrollChild then
@@ -624,6 +664,9 @@ function module:RefreshItemList()
 
 	local items = self:GetFilteredScrappableItems()
 	local pendingMap = self:GetMappedPendingItems()
+
+	-- Update the auto scrap checkbox text
+	self:UpdateAutoScrapText()
 
 	local itemsPerRow = 6
 	local buttonSize = 35
@@ -769,64 +812,96 @@ function module:ShowAffixBlacklistWindow()
 		instructions:SetPoint('TOPLEFT', 15, -30)
 		instructions:SetPoint('TOPRIGHT', -15, -30)
 		instructions:SetJustifyH('LEFT')
-		instructions:SetText('Items with these stats/affixes will be excluded from auto-scrapping.\nSelect from known affixes or enter custom text.')
+		instructions:SetText('Items with these stats/affixes will be excluded from auto-scrapping.\nSelect from dropdowns or enter custom text.')
 
-		-- Quick add buttons for common stats
-		local quickAddLabel = window:CreateFontString(nil, 'ARTWORK', 'GameFontNormalSmall')
-		quickAddLabel:SetPoint('TOPLEFT', instructions, 'BOTTOMLEFT', 0, -15)
-		quickAddLabel:SetText('Common Stats:')
+		-- Stats dropdown
+		local statsLabel = window:CreateFontString(nil, 'ARTWORK', 'GameFontNormalSmall')
+		statsLabel:SetPoint('TOPLEFT', instructions, 'BOTTOMLEFT', 0, -15)
+		statsLabel:SetText('Stats:')
 
-		local quickStats = {'Speed', 'Leech', 'Avoidance'}
-		local lastBtn = nil
-		for i, stat in ipairs(quickStats) do
-			local btn = CreateFrame('Button', nil, window, 'UIPanelButtonTemplate')
-			btn:SetSize(80, 22)
-			if i == 1 then
-				btn:SetPoint('TOPLEFT', quickAddLabel, 'BOTTOMLEFT', 0, -5)
-			else
-				btn:SetPoint('LEFT', lastBtn, 'RIGHT', 5, 0)
-			end
-			btn:SetText(stat)
-			btn:SetScript(
-				'OnClick',
-				function()
-					module.DB.affixBlacklist[stat] = true
-					self:RefreshAffixList()
-					self:RefreshItemList()
+		local statsDropdown = CreateFrame('DropdownButton', nil, window, 'WowStyle1FilterDropdownTemplate')
+		statsDropdown:SetPoint('TOPLEFT', statsLabel, 'BOTTOMLEFT', 0, -5)
+		statsDropdown:SetSize(200, 22)
+		statsDropdown:SetText('Add Stat...')
+
+		-- Setup stats dropdown generator
+		statsDropdown:SetupMenu(
+			function(dropdown, rootDescription)
+				for _, stat in ipairs(KNOWN_STATS) do
+					local isBlacklisted = module.DB.affixBlacklist[stat] ~= nil
+					local button =
+						rootDescription:CreateButton(
+						stat,
+						function()
+							if module.DB.affixBlacklist[stat] then
+								module.DB.affixBlacklist[stat] = nil
+							else
+								module.DB.affixBlacklist[stat] = true
+							end
+							self:RefreshBlacklistDisplay()
+							self:RefreshItemList()
+						end
+					)
+					button:SetEnabled(not isBlacklisted)
 				end
-			)
-			lastBtn = btn
-		end
+			end
+		)
 
-		-- Dropdown for known affixes
+		-- Affixes dropdown
 		local affixLabel = window:CreateFontString(nil, 'ARTWORK', 'GameFontNormalSmall')
-		affixLabel:SetPoint('TOPLEFT', quickAddLabel, 'BOTTOMLEFT', 0, -35)
-		affixLabel:SetText('Known Affixes:')
+		affixLabel:SetPoint('TOPLEFT', statsDropdown, 'BOTTOMLEFT', 0, -10)
+		affixLabel:SetText('Affixes:')
 
-		local affixDropdown = CreateFrame('Frame', nil, window, 'UIDropDownMenuTemplate')
-		affixDropdown:SetPoint('TOPLEFT', affixLabel, 'BOTTOMLEFT', -15, -5)
-		UIDropDownMenu_SetWidth(affixDropdown, 200)
-		UIDropDownMenu_SetText(affixDropdown, 'Select...')
+		local affixDropdown = CreateFrame('DropdownButton', nil, window, 'WowStyle1FilterDropdownTemplate')
+		affixDropdown:SetPoint('TOPLEFT', affixLabel, 'BOTTOMLEFT', 0, -5)
+		affixDropdown:SetSize(200, 22)
+		affixDropdown:SetText('Add Affix...')
 
-		UIDropDownMenu_Initialize(
-			affixDropdown,
-			function(_, level)
-				for _, affix in ipairs(KNOWN_AFFIXES) do
-					local info = UIDropDownMenu_CreateInfo()
-					info.text = affix
-					info.func = function()
-						module.DB.affixBlacklist[affix] = true
-						self:RefreshAffixList()
-						self:RefreshItemList()
+		-- Setup affix dropdown generator
+		affixDropdown:SetupMenu(
+			function(dropdown, rootDescription)
+				-- Get sorted list of affix names
+				local affixNames = {}
+				for affixName in pairs(KNOWN_AFFIXES) do
+					table.insert(affixNames, affixName)
+				end
+				table.sort(affixNames)
+
+				for _, affix in ipairs(affixNames) do
+					local isBlacklisted = module.DB.affixBlacklist[affix] ~= nil
+					local spellID = KNOWN_AFFIXES[affix]
+					local icon = spellID and C_Spell.GetSpellTexture(spellID)
+
+					local button =
+						rootDescription:CreateButton(
+						affix,
+						function()
+							if module.DB.affixBlacklist[affix] then
+								module.DB.affixBlacklist[affix] = nil
+							else
+								module.DB.affixBlacklist[affix] = true
+							end
+							self:RefreshBlacklistDisplay()
+							self:RefreshItemList()
+						end
+					)
+					if icon then
+						button:AddInitializer(function(btn)
+							local iconTexture = btn:AttachTexture()
+							iconTexture:SetTexture(icon)
+							iconTexture:SetSize(16, 16)
+							iconTexture:SetPoint("LEFT", 4, 0)
+							btn.fontString:SetPoint("LEFT", 24, 0)
+						end)
 					end
-					UIDropDownMenu_AddButton(info, level)
+					button:SetEnabled(not isBlacklisted)
 				end
 			end
 		)
 
 		-- Custom text entry
 		local customLabel = window:CreateFontString(nil, 'ARTWORK', 'GameFontNormalSmall')
-		customLabel:SetPoint('TOPLEFT', affixDropdown, 'BOTTOMLEFT', 15, -10)
+		customLabel:SetPoint('TOPLEFT', affixDropdown, 'BOTTOMLEFT', 0, -10)
 		customLabel:SetText('Custom Text:')
 
 		local addBox = CreateFrame('EditBox', nil, window, 'InputBoxTemplate')
@@ -847,13 +922,13 @@ function module:ShowAffixBlacklistWindow()
 				if text ~= '' then
 					module.DB.affixBlacklist[text] = true
 					addBox:SetText('')
-					self:RefreshAffixList()
+					self:RefreshBlacklistDisplay()
 					self:RefreshItemList()
 				end
 			end
 		)
 
-		-- Scroll frame for blacklist
+		-- Scroll frame for blacklist display
 		local scrollFrame = CreateFrame('ScrollFrame', nil, window, 'UIPanelScrollFrameTemplate')
 		scrollFrame:SetPoint('TOPLEFT', addBox, 'BOTTOMLEFT', -5, -10)
 		scrollFrame:SetPoint('BOTTOMRIGHT', window, 'BOTTOMRIGHT', -28, 50)
@@ -864,7 +939,7 @@ function module:ShowAffixBlacklistWindow()
 
 		window.scrollFrame = scrollFrame
 		window.scrollChild = scrollChild
-		window.affixButtons = {}
+		window.blacklistButtons = {}
 
 		-- Close button behavior
 		window.CloseButton:SetScript(
@@ -877,41 +952,52 @@ function module:ShowAffixBlacklistWindow()
 		self.affixWindow = window
 	end
 
-	self:RefreshAffixList()
+	self:RefreshBlacklistDisplay()
 	self.affixWindow:Show()
 end
 
----Refresh the affix blacklist display
-function module:RefreshAffixList()
+---Refresh the blacklist display (shows currently blacklisted items)
+function module:RefreshBlacklistDisplay()
 	if not self.affixWindow then
 		return
 	end
 
 	local window = self.affixWindow
-	local affixes = {}
+	local blacklisted = {}
 
-	-- Build sorted list of affixes
-	for affix in pairs(module.DB.affixBlacklist or {}) do
-		table.insert(affixes, affix)
+	-- Build sorted list of blacklisted items
+	for item in pairs(module.DB.affixBlacklist or {}) do
+		table.insert(blacklisted, item)
 	end
-	table.sort(affixes)
+	table.sort(blacklisted)
 
 	-- Hide existing buttons
-	for _, btn in ipairs(window.affixButtons) do
+	for _, btn in ipairs(window.blacklistButtons) do
 		btn:Hide()
 	end
 
-	-- Create/update buttons
+	-- Create/update buttons for blacklisted items
 	local yOffset = 0
-	for i, affix in ipairs(affixes) do
-		local btn = window.affixButtons[i]
+	for i, item in ipairs(blacklisted) do
+		local btn = window.blacklistButtons[i]
 		if not btn then
 			btn = CreateFrame('Frame', nil, window.scrollChild)
 			btn:SetSize(window.scrollChild:GetWidth(), 24)
 
+			-- Icon texture
+			btn.icon = btn:CreateTexture(nil, 'ARTWORK')
+			btn.icon:SetSize(20, 20)
+			btn.icon:SetPoint('LEFT', 5, 0)
+
+			-- Invisible button for tooltip hover
+			btn.iconButton = CreateFrame('Button', nil, btn)
+			btn.iconButton:SetSize(20, 20)
+			btn.iconButton:SetPoint('LEFT', 5, 0)
+			btn.iconButton:EnableMouse(true)
+
 			btn.text = btn:CreateFontString(nil, 'ARTWORK', 'GameFontNormal')
-			btn.text:SetPoint('LEFT', 5, 0)
-			btn.text:SetPoint('RIGHT', -30, 0)
+			btn.text:SetPoint('LEFT', 30, 0)
+			btn.text:SetPoint('RIGHT', -70, 0)
 			btn.text:SetJustifyH('LEFT')
 
 			btn.deleteBtn = CreateFrame('Button', nil, btn, 'UIPanelButtonTemplate')
@@ -919,16 +1005,45 @@ function module:RefreshAffixList()
 			btn.deleteBtn:SetPoint('RIGHT', -5, 0)
 			btn.deleteBtn:SetText('Remove')
 
-			window.affixButtons[i] = btn
+			window.blacklistButtons[i] = btn
 		end
 
 		btn:SetPoint('TOPLEFT', 0, -yOffset)
-		btn.text:SetText(affix)
+		btn.text:SetText(item)
+
+		-- Get spell ID and icon for this affix
+		local spellID = KNOWN_AFFIXES[item]
+		if spellID then
+			local icon = C_Spell.GetSpellTexture(spellID)
+			if icon then
+				btn.icon:SetTexture(icon)
+				btn.icon:Show()
+				btn.iconButton:Show()
+
+				-- Set up spell tooltip
+				btn.iconButton:SetScript('OnEnter', function()
+					GameTooltip:SetOwner(btn.iconButton, 'ANCHOR_RIGHT')
+					GameTooltip:SetSpellByID(spellID)
+					GameTooltip:Show()
+				end)
+				btn.iconButton:SetScript('OnLeave', function()
+					GameTooltip:Hide()
+				end)
+			else
+				btn.icon:Hide()
+				btn.iconButton:Hide()
+			end
+		else
+			-- No icon for custom text or stats
+			btn.icon:Hide()
+			btn.iconButton:Hide()
+		end
+
 		btn.deleteBtn:SetScript(
 			'OnClick',
 			function()
-				module.DB.affixBlacklist[affix] = nil
-				self:RefreshAffixList()
+				module.DB.affixBlacklist[item] = nil
+				self:RefreshBlacklistDisplay()
 				self:RefreshItemList()
 			end
 		)

@@ -3,6 +3,16 @@ local LibRTC = LibStub('AceAddon-3.0'):NewAddon('Libs-RemixPowerLevel', 'AceEven
 local LDB = LibStub('LibDataBroker-1.1')
 local LDBIcon = LibStub('LibDBIcon-1.0')
 
+-- Initialize logger if Libs-AddonTools is available
+if LibAT and LibAT.Logger then
+	LibRTC.logger = LibAT.Logger.RegisterAddon('Libs-RemixPowerLevel')
+else
+	-- Fallback to print if logger not available
+	LibRTC.logger = function(message)
+		print('[Libs-RemixPowerLevel]', message)
+	end
+end
+
 -- MOP: Timerunner's Advantage
 -- Legion: Infinite Power
 
