@@ -69,7 +69,8 @@ local ITEM_TO_INV_SLOT = {
 
 ---@class LibRTC.Module.Scrapping.DB
 local DbDefaults = {
-	autoScrap = false,
+	enabled = true,
+	autoScrap = true,
 	maxQuality = Enum.ItemQuality.Rare,
 	minLevelDiff = 0,
 	affixBlacklist = {}
@@ -80,12 +81,6 @@ local scannerTooltip = CreateFrame('GameTooltip', 'LibsRemixPowerLevelScannerToo
 scannerTooltip:SetOwner(UIParent, 'ANCHOR_NONE')
 
 function module:OnInitialize()
-	-- Check if character name starts with "lib" for auto-scrap default
-	local charName = UnitName('player'):lower()
-	if charName:sub(1, 3) == 'lib' then
-		DbDefaults.autoScrap = true
-	end
-
 	module.Database = LibRTC.dbobj:RegisterNamespace('Scrapping', {profile = DbDefaults})
 	module.DB = module.Database.profile ---@type LibRTC.Module.Scrapping.DB
 
@@ -110,12 +105,33 @@ function module:InitializeOptions()
 				order = 1,
 				fontSize = 'medium'
 			},
+			enabled = {
+				type = 'toggle',
+				name = 'Enable Module',
+				desc = 'Enable or disable the Auto Scrapper module entirely. When disabled, the UI will not be created.',
+				order = 5,
+				width = 'full',
+				get = function()
+					return self.DB.enabled
+				end,
+				set = function(_, value)
+					self.DB.enabled = value
+					if value then
+						LibRTC:EnableModule('Scrapping')
+					else
+						LibRTC:DisableModule('Scrapping')
+					end
+				end
+			},
 			autoScrap = {
 				type = 'toggle',
 				name = 'Enable Auto Scrap',
 				desc = 'Automatically fill the scrapping machine with items matching your filters',
 				order = 10,
 				width = 'full',
+				disabled = function()
+					return not self.DB.enabled
+				end,
 				get = function()
 					return self.DB.autoScrap
 				end,
@@ -129,6 +145,9 @@ function module:InitializeOptions()
 				desc = 'Only scrap items up to this quality level',
 				order = 11,
 				width = 'full',
+				disabled = function()
+					return not self.DB.enabled
+				end,
 				values = {
 					[Enum.ItemQuality.Common] = '|cffFFFFFFCommon|r',
 					[Enum.ItemQuality.Uncommon] = '|cff1EFF00Uncommon|r',
@@ -151,6 +170,9 @@ function module:InitializeOptions()
 				min = 0,
 				max = 50,
 				step = 1,
+				disabled = function()
+					return not self.DB.enabled
+				end,
 				get = function()
 					return self.DB.minLevelDiff
 				end,
@@ -172,7 +194,22 @@ function module:OnEnable()
 		return
 	end
 
+	-- Only initialize if the module is enabled
+	if self.DB and not self.DB.enabled then
+		return
+	end
+
 	self:Init()
+end
+
+function module:OnDisable()
+	-- Hide UI elements when module is disabled
+	if self.uiFrame then
+		self.uiFrame:Hide()
+	end
+	if self.affixWindow then
+		self.affixWindow:Hide()
+	end
 end
 
 ----------------------------------------------------------------------------------------------------
@@ -876,9 +913,11 @@ function module:ShowAffixBlacklistWindow()
 					end
 					-- Add tooltip to dropdown item
 					if spellID then
-						button:SetTooltip(function(tooltip)
-							tooltip:SetSpellByID(spellID)
-						end)
+						button:SetTooltip(
+							function(tooltip)
+								tooltip:SetSpellByID(spellID)
+							end
+						)
 					end
 					button:SetEnabled(not isBlacklisted)
 				end
