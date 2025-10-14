@@ -242,17 +242,33 @@ end
 function module:ScanItemAffixes(itemLink)
 	local affixes = {}
 	if not itemLink then
+		if LibRTC.logger then
+			LibRTC.logger.debug("ScanItemAffixes: itemLink is nil")
+		end
 		return affixes
 	end
 
 	scannerTooltip:ClearLines()
 	scannerTooltip:SetHyperlink(itemLink)
 
+	local numLines = scannerTooltip:NumLines()
+	if LibRTC.logger then
+		LibRTC.logger.debug("ScanItemAffixes: NumLines = " .. tostring(numLines))
+	end
+
 	-- Scan all tooltip lines for text and icons
-	for i = 1, scannerTooltip:NumLines() do
+	for i = 1, numLines do
 		local line = _G['LibsRemixPowerLevelScannerTooltipTextLeft' .. i]
+		if LibRTC.logger then
+			LibRTC.logger.debug("Line " .. i .. ": fontstring exists = " .. tostring(line ~= nil))
+		end
+
 		if line then
 			local text = line:GetText()
+			if LibRTC.logger then
+				LibRTC.logger.debug("Line " .. i .. " text: " .. tostring(text))
+			end
+
 			if text then
 				-- Try to get icon from the line's text
 				local iconFileID = nil
