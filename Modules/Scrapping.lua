@@ -512,6 +512,7 @@ function module:InitUI()
 				info.func = function()
 					module.DB.maxQuality = quality.value
 					UIDropDownMenu_SetText(qualityDropdown, quality.text)
+					module:ClearFilteredPendingItems()
 					module:RefreshItemList()
 				end
 				UIDropDownMenu_AddButton(info, level)
@@ -542,6 +543,7 @@ function module:InitUI()
 				local num = tonumber(editBox:GetText())
 				if num then
 					module.DB.minLevelDiff = num
+					module:ClearFilteredPendingItems()
 					module:RefreshItemList()
 				end
 			end
