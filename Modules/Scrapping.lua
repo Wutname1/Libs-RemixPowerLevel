@@ -1,7 +1,7 @@
 ---@class LibRTC
 local LibRTC = LibStub('AceAddon-3.0'):GetAddon('Libs-RemixPowerLevel')
----@class LibRTC.Module.Scrapping : AceModule, AceEvent-3.0
-local module = LibRTC:NewModule('Scrapping', 'AceEvent-3.0')
+---@class LibRTC.Module.Scrapping : AceModule, AceEvent-3.0, AceTimer-3.0
+local module = LibRTC:NewModule('Scrapping', 'AceEvent-3.0', 'AceTimer-3.0')
 module.DisplayName = 'Auto Scrapper'
 module.description = 'Automatically scrap items based on filters'
 
@@ -413,11 +413,19 @@ function module:AutoScrap()
 		return
 	end
 
-	C_Timer.After(
-		0.1,
+	-- Cancel any pending auto-scrap timer
+	if self.autoScrapTimer then
+		self:CancelTimer(self.autoScrapTimer)
+	end
+
+	-- Schedule auto-scrap with a delay to allow bag updates from server
+	self.autoScrapTimer =
+		self:ScheduleTimer(
 		function()
 			self:AutoScrapBatch()
-		end
+			self.autoScrapTimer = nil
+		end,
+		0.5
 	)
 end
 
@@ -643,8 +651,14 @@ function module:InitUI()
 			if self.DB and self.DB.enabled then
 				self:RefreshScrappingList()
 				self:UpdateScrappingListVisibility()
-				self:RefreshItemList()
-				self:AutoScrap()
+
+				self:ScheduleTimer(
+					function()
+						self:RefreshItemList()
+						self:AutoScrap()
+					end,
+					0.1
+				)
 			end
 		end
 	)
