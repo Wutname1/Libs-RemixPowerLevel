@@ -511,7 +511,7 @@ function module:InitUI()
 	local affixButton = CreateFrame('Button', nil, frame, 'UIPanelButtonTemplate')
 	affixButton:SetSize(120, 22)
 	affixButton:SetPoint('LEFT', minLevelBox, 'RIGHT', 10, 0)
-	affixButton:SetText('Affix Blacklist...')
+	affixButton:SetText('Affix Blacklist')
 	affixButton:SetScript(
 		'OnClick',
 		function()
@@ -874,6 +874,12 @@ function module:ShowAffixBlacklistWindow()
 							end
 						)
 					end
+					-- Add tooltip to dropdown item
+					if spellID then
+						button:SetTooltip(function(tooltip)
+							tooltip:SetSpellByID(spellID)
+						end)
+					end
 					button:SetEnabled(not isBlacklisted)
 				end
 			end
@@ -987,9 +993,16 @@ function module:RefreshBlacklistDisplay()
 			btn.iconButton:SetPoint('LEFT', 5, 0)
 			btn.iconButton:EnableMouse(true)
 
-			btn.text = btn:CreateFontString(nil, 'ARTWORK', 'GameFontNormal')
-			btn.text:SetPoint('LEFT', 30, 0)
-			btn.text:SetPoint('RIGHT', -70, 0)
+			-- Text button for tooltip hover
+			btn.textButton = CreateFrame('Button', nil, btn)
+			btn.textButton:SetPoint('LEFT', 30, 0)
+			btn.textButton:SetPoint('RIGHT', -70, 0)
+			btn.textButton:SetHeight(24)
+			btn.textButton:EnableMouse(true)
+
+			btn.text = btn.textButton:CreateFontString(nil, 'ARTWORK', 'GameFontNormal')
+			btn.text:SetPoint('LEFT', 0, 0)
+			btn.text:SetPoint('RIGHT', 0, 0)
 			btn.text:SetJustifyH('LEFT')
 
 			btn.deleteBtn = CreateFrame('Button', nil, btn, 'UIPanelButtonTemplate')
@@ -1012,7 +1025,7 @@ function module:RefreshBlacklistDisplay()
 				btn.icon:Show()
 				btn.iconButton:Show()
 
-				-- Set up spell tooltip
+				-- Set up spell tooltip for icon
 				btn.iconButton:SetScript(
 					'OnEnter',
 					function()
@@ -1027,6 +1040,22 @@ function module:RefreshBlacklistDisplay()
 						GameTooltip:Hide()
 					end
 				)
+
+				-- Set up spell tooltip for text
+				btn.textButton:SetScript(
+					'OnEnter',
+					function()
+						GameTooltip:SetOwner(btn.textButton, 'ANCHOR_RIGHT')
+						GameTooltip:SetSpellByID(spellID)
+						GameTooltip:Show()
+					end
+				)
+				btn.textButton:SetScript(
+					'OnLeave',
+					function()
+						GameTooltip:Hide()
+					end
+				)
 			else
 				btn.icon:Hide()
 				btn.iconButton:Hide()
@@ -1035,6 +1064,10 @@ function module:RefreshBlacklistDisplay()
 			-- No icon for custom text or stats
 			btn.icon:Hide()
 			btn.iconButton:Hide()
+
+			-- Clear text tooltip for non-affixes
+			btn.textButton:SetScript('OnEnter', nil)
+			btn.textButton:SetScript('OnLeave', nil)
 		end
 
 		btn.deleteBtn:SetScript(
