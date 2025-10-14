@@ -75,6 +75,10 @@ local DbDefaults = {
 	affixBlacklist = {}
 }
 
+-- Debug logging counter - limit to first 10 items
+local debugLogCount = 0
+local MAX_DEBUG_LOGS = 10
+
 -- Tooltip scanner for detecting affixes
 local scannerTooltip = CreateFrame('GameTooltip', 'LibsRemixPowerLevelScannerTooltip', nil, 'GameTooltipTemplate')
 scannerTooltip:SetOwner(UIParent, 'ANCHOR_NONE')
@@ -242,9 +246,6 @@ end
 function module:ScanItemAffixes(itemLink)
 	local affixes = {}
 	if not itemLink then
-		if LibRTC.logger then
-			LibRTC.logger.debug("ScanItemAffixes: itemLink is nil")
-		end
 		return affixes
 	end
 
@@ -252,22 +253,13 @@ function module:ScanItemAffixes(itemLink)
 	scannerTooltip:SetHyperlink(itemLink)
 
 	local numLines = scannerTooltip:NumLines()
-	if LibRTC.logger then
-		LibRTC.logger.debug("ScanItemAffixes: NumLines = " .. tostring(numLines))
-	end
 
 	-- Scan all tooltip lines for text and icons
 	for i = 1, numLines do
 		local line = _G['LibsRemixPowerLevelScannerTooltipTextLeft' .. i]
-		if LibRTC.logger then
-			LibRTC.logger.debug("Line " .. i .. ": fontstring exists = " .. tostring(line ~= nil))
-		end
 
 		if line then
 			local text = line:GetText()
-			if LibRTC.logger then
-				LibRTC.logger.debug("Line " .. i .. " text: " .. tostring(text))
-			end
 
 			if text then
 				-- Try to get icon from the line's text
@@ -308,9 +300,12 @@ function module:HasBlacklistedAffix(itemLink)
 	-- Scan tooltip lines for text
 	local affixes = self:ScanItemAffixes(itemLink)
 
-	-- Debug logging
-	if LibRTC.logger then
-		LibRTC.logger.debug("Scanning item: " .. tostring(itemLink))
+	-- Debug logging (limited to first MAX_DEBUG_LOGS items)
+	local shouldLog = LibRTC.logger and debugLogCount < MAX_DEBUG_LOGS
+	if shouldLog then
+		debugLogCount = debugLogCount + 1
+
+		LibRTC.logger.debug("=== Scanning item #" .. debugLogCount .. ": " .. tostring(itemLink))
 
 		local blacklistItems = {}
 		for key in pairs(self.DB.affixBlacklist) do
@@ -328,7 +323,7 @@ function module:HasBlacklistedAffix(itemLink)
 	for tooltipLine, _ in pairs(affixes) do
 		for blacklistedText in pairs(self.DB.affixBlacklist) do
 			-- Check if blacklisted text appears anywhere in this tooltip line
-			if LibRTC.logger then
+			if shouldLog then
 				LibRTC.logger.debug("Checking if '" .. blacklistedText .. "' is in '" .. tooltipLine .. "'")
 			end
 
@@ -342,7 +337,7 @@ function module:HasBlacklistedAffix(itemLink)
 		end
 	end
 
-	if LibRTC.logger then
+	if shouldLog then
 		LibRTC.logger.debug("No blacklist matches found for this item")
 	end
 
@@ -686,6 +681,9 @@ function module:RefreshItemList()
 	if not self.scrollChild then
 		return
 	end
+
+	-- Reset debug log counter for new refresh
+	debugLogCount = 0
 
 	local items = self:GetFilteredScrappableItems()
 	local pendingMap = self:GetMappedPendingItems()
