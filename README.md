@@ -5,8 +5,6 @@ Displays power level information for Timerunner characters in both MOP Remix and
 ### Power Level Display
 
 - **Character Screen**: View your power level directly on the character sheet
-  - **MOP Remix**: Thread count displayed next to the Cloak of Infinite Potential
-  - **Legion Remix**: Infinite Power shown above the main weapon slot
 - **Tooltips**: Mouse over other players to see their power levels
 - **Minimap Button**: Shows top 10 power levels in your current group or raid
 
@@ -26,20 +24,6 @@ The addon includes an auto-scrapping system that appears when you open a scrappi
 - **Settings**: Configure all options either in-game through the scrapping UI or via `/rpl` command
 
 The auto scrapper helps manage large amounts of gear during Legion Remix by automating the tedious process of manually selecting items to scrap.
-
-## Commands
-
-- `/rpl` or `/remixpowerlevel` - Opens the addon settings
-
-## Display Options
-
-All display features can be toggled on or off in the addon settings:
-
-- Character screen display
-- Tooltip display
-- Minimap button visibility
-
-## Screenshots
 
 **Auto Scrapper UI:**
 

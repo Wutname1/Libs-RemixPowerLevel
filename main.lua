@@ -286,7 +286,7 @@ function LibRTC:OnInitialize()
 		}
 	}
 	-- Setup database
-	self.dbobj = LibStub('AceDB-3.0'):New('LibsRemixDB', {profile = databaseDefaults}, true)
+	self.dbobj = LibStub('AceDB-3.0'):New('LibsRemixDB', {profile = databaseDefaults})
 	self.db = self.dbobj.profile ---@type LibRTC.DB
 
 	-- Create options table for modules to extend
