@@ -512,8 +512,7 @@ function module:InitUI()
 				info.func = function()
 					module.DB.maxQuality = quality.value
 					UIDropDownMenu_SetText(qualityDropdown, quality.text)
-					module:ClearFilteredPendingItems()
-					module:RefreshItemList()
+					module:UpdateAll()
 				end
 				UIDropDownMenu_AddButton(info, level)
 			end
@@ -543,8 +542,7 @@ function module:InitUI()
 				local num = tonumber(editBox:GetText())
 				if num then
 					module.DB.minLevelDiff = num
-					module:ClearFilteredPendingItems()
-					module:RefreshItemList()
+					module:UpdateAll()
 				end
 			end
 		end
@@ -657,7 +655,12 @@ function module:GetMappedPendingItems()
 	for i = 1, SCRAPPING_MACHINE_MAX_SLOTS do
 		local itemLoc = C_ScrappingMachineUI.GetCurrentPendingScrapItemLocationByIndex(i - 1)
 		if itemLoc then
-			local isValid = pcall(function() return itemLoc:IsValid() end)
+			local isValid =
+				pcall(
+				function()
+					return itemLoc:IsValid()
+				end
+			)
 			if isValid and itemLoc:IsValid() then
 				local bagID, slotID = itemLoc:GetBagAndSlot()
 				pendingMap[bagID .. '-' .. slotID] = true
@@ -674,6 +677,13 @@ function module:ClearFilteredPendingItems()
 		LibRTC.logger.info('ClearFilteredPendingItems called - clearing all pending items')
 	end
 	C_ScrappingMachineUI.RemoveAllScrapItems()
+end
+
+---Update everything when filters change
+function module:UpdateAll()
+	self:ClearFilteredPendingItems()
+	self:RefreshItemList()
+	self:AutoScrap()
 end
 
 ---Update auto scrap checkbox text with item count
@@ -874,7 +884,7 @@ function module:ShowAffixBlacklistWindow()
 								module.DB.affixBlacklist[stat] = true
 							end
 							self:RefreshBlacklistDisplay()
-							self:RefreshItemList()
+							self:UpdateAll()
 						end
 					)
 					button:SetEnabled(not isBlacklisted)
@@ -917,7 +927,7 @@ function module:ShowAffixBlacklistWindow()
 								module.DB.affixBlacklist[affix] = true
 							end
 							self:RefreshBlacklistDisplay()
-							self:RefreshItemList()
+							self:UpdateAll()
 						end
 					)
 					if icon then
@@ -967,9 +977,8 @@ function module:ShowAffixBlacklistWindow()
 				if text ~= '' then
 					module.DB.affixBlacklist[text] = true
 					addBox:SetText('')
-					self:ClearFilteredPendingItems()
 					self:RefreshBlacklistDisplay()
-					self:RefreshItemList()
+					self:UpdateAll()
 				end
 			end
 		)
@@ -1133,9 +1142,8 @@ function module:RefreshBlacklistDisplay()
 			'OnClick',
 			function()
 				module.DB.affixBlacklist[item] = nil
-				self:ClearFilteredPendingItems()
 				self:RefreshBlacklistDisplay()
-				self:RefreshItemList()
+				self:UpdateAll()
 			end
 		)
 		btn:Show()
