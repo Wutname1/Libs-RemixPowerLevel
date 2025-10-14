@@ -73,7 +73,8 @@ local DbDefaults = {
 	autoScrap = true,
 	maxQuality = Enum.ItemQuality.Rare,
 	minLevelDiff = 0,
-	affixBlacklist = {}
+	affixBlacklist = {},
+	scrappingListManualHide = false
 }
 
 -- Tooltip scanner for detecting affixes
@@ -605,8 +606,7 @@ function module:InitUI()
 			-- Only show if module is enabled
 			if self.DB and self.DB.enabled then
 				frame:Show()
-				self:RefreshItemList()
-				self:AutoScrap()
+				module:UpdateAll()
 			else
 				frame:Hide()
 			end
@@ -633,16 +633,311 @@ function module:InitUI()
 		end
 	)
 
+	-- Create scrapping list window and toggle button
+	self:InitScrappingListUI()
+
+	-- Register event for real-time updates of scrapping list
 	self:RegisterEvent(
 		'SCRAPPING_MACHINE_PENDING_ITEM_CHANGED',
 		function()
 			if self.DB and self.DB.enabled then
+				self:RefreshScrappingList()
+				self:UpdateScrappingListVisibility()
 				self:RefreshItemList()
 				self:AutoScrap()
 			end
 		end
 	)
 end
+
+----------------------------------------------------------------------------------------------------
+-- Scrapping List UI
+----------------------------------------------------------------------------------------------------
+
+---Initialize the scrapping list window and toggle button
+function module:InitScrappingListUI()
+	if not ScrappingMachineFrame then
+		return
+	end
+
+	-- Toggle button on scrapping machine frame
+	local toggleButton = CreateFrame('Button', nil, ScrappingMachineFrame)
+	toggleButton:SetSize(20, 20)
+	toggleButton:SetPoint('BOTTOMRIGHT', ScrappingMachineFrame, 'BOTTOMRIGHT', -8, 8)
+
+	-- Button textures using the arrow atlases
+	local normalTexture = toggleButton:CreateTexture(nil, 'BACKGROUND')
+	normalTexture:SetAllPoints()
+	normalTexture:SetAtlas('128-RedButton-ArrowDown')
+	toggleButton:SetNormalTexture(normalTexture)
+
+	local pushedTexture = toggleButton:CreateTexture(nil, 'BACKGROUND')
+	pushedTexture:SetAllPoints()
+	pushedTexture:SetAtlas('128-RedButton-ArrowDown-Pressed')
+	toggleButton:SetPushedTexture(pushedTexture)
+
+	local highlightTexture = toggleButton:CreateTexture(nil, 'HIGHLIGHT')
+	highlightTexture:SetAllPoints()
+	highlightTexture:SetAtlas('128-RedButton-ArrowDown-Highlight')
+	toggleButton:SetHighlightTexture(highlightTexture)
+
+	self.scrappingListToggleButton = toggleButton
+
+	-- Scrapping list window
+	local window = CreateFrame('Frame', 'LibsRemixPowerLevelScrappingListWindow', ScrappingMachineFrame, 'PortraitFrameTemplate')
+	ButtonFrameTemplate_HidePortrait(window)
+	window:SetSize(ScrappingMachineFrame:GetWidth(), 215)
+	window:SetPoint('TOP', ScrappingMachineFrame, 'BOTTOM', 0, -5)
+	window:SetFrameStrata('MEDIUM')
+	window:SetFrameLevel(ScrappingMachineFrame:GetFrameLevel() + 1)
+
+	-- Set title
+	if window.TitleText then
+		window.TitleText:SetText('Scrapping')
+	elseif window.TitleContainer and window.TitleContainer.TitleText then
+		window.TitleContainer.TitleText:SetText('Scrapping')
+	end
+
+	-- Hide close button - we'll use the toggle button instead
+	if window.CloseButton then
+		window.CloseButton:SetScript(
+			'OnClick',
+			function()
+				self.DB.scrappingListManualHide = true
+				self:UpdateScrappingListVisibility()
+			end
+		)
+	end
+
+	-- Create scroll child for item list
+	window.itemList = {}
+	window.scrollChild = CreateFrame('Frame', nil, window.Inset or window)
+	window.scrollChild:SetPoint('TOPLEFT', window.Inset or window, 'TOPLEFT', 5, -5)
+	window.scrollChild:SetPoint('BOTTOMRIGHT', window.Inset or window, 'BOTTOMRIGHT', -5, 5)
+	window.scrollChild:SetSize(window:GetWidth() - 10, 1)
+
+	window.scrollChild.Background = window.scrollChild:CreateTexture(nil, 'BACKGROUND')
+	window.scrollChild.Background:SetAtlas('auctionhouse-background-index', true)
+	window.scrollChild.Background:SetPoint('TOPLEFT', window.scrollChild, 'TOPLEFT')
+	window.scrollChild.Background:SetPoint('BOTTOMRIGHT', window.scrollChild, 'BOTTOMRIGHT')
+
+	self.scrappingListWindow = window
+
+	-- Toggle button click handler
+	toggleButton:SetScript(
+		'OnClick',
+		function()
+			self.DB.scrappingListManualHide = false
+			self:UpdateScrappingListVisibility()
+		end
+	)
+
+	-- Hook scrapping machine show/hide
+	ScrappingMachineFrame:HookScript(
+		'OnShow',
+		function()
+			if self.DB and self.DB.enabled then
+				self:RefreshScrappingList()
+				self:UpdateScrappingListVisibility()
+			end
+		end
+	)
+
+	ScrappingMachineFrame:HookScript(
+		'OnHide',
+		function()
+			if self.scrappingListWindow then
+				self.scrappingListWindow:Hide()
+			end
+			if self.scrappingListToggleButton then
+				self.scrappingListToggleButton:Hide()
+			end
+		end
+	)
+
+	-- Initial state
+	window:Hide()
+	toggleButton:Hide()
+end
+
+---Get pending scrap items with their data
+---@return table<number, {itemLoc: ItemLocation, link: string, level: number, quality: Enum.ItemQuality, name: string}>
+function module:GetPendingScrapItems()
+	local items = {}
+	if not C_ScrappingMachineUI.HasScrappableItems() then
+		return items
+	end
+
+	for i = 1, SCRAPPING_MACHINE_MAX_SLOTS do
+		local itemLoc = C_ScrappingMachineUI.GetCurrentPendingScrapItemLocationByIndex(i - 1)
+		if itemLoc then
+			local isValid =
+				pcall(
+				function()
+					return itemLoc:IsValid()
+				end
+			)
+			if isValid and itemLoc:IsValid() then
+				local link = C_Item.GetItemLink(itemLoc)
+				if link then
+					local level = C_Item.GetCurrentItemLevel(itemLoc)
+					local quality = C_Item.GetItemQuality(itemLoc)
+					local name = C_Item.GetItemName(itemLoc)
+					table.insert(
+						items,
+						{
+							itemLoc = itemLoc,
+							link = link,
+							level = level,
+							quality = quality,
+							name = name
+						}
+					)
+				end
+			end
+		end
+	end
+
+	return items
+end
+
+---Refresh the scrapping list display
+function module:RefreshScrappingList()
+	if not self.scrappingListWindow or not self.scrappingListWindow.scrollChild then
+		return
+	end
+
+	local window = self.scrappingListWindow
+	local items = self:GetPendingScrapItems()
+
+	-- Clear existing list
+	for _, frame in ipairs(window.itemList) do
+		frame:Hide()
+	end
+
+	-- Quality colors
+	local qualityColors = {
+		[Enum.ItemQuality.Poor] = '|cff9d9d9d',
+		[Enum.ItemQuality.Common] = '|cffffffff',
+		[Enum.ItemQuality.Uncommon] = '|cff1eff00',
+		[Enum.ItemQuality.Rare] = '|cff0070dd',
+		[Enum.ItemQuality.Epic] = '|cffa335ee',
+		[Enum.ItemQuality.Legendary] = '|cffff8000'
+	}
+
+	-- Create/update item rows
+	local yOffset = 20
+	local rowHeight = 20
+	for i, item in ipairs(items) do
+		local row = window.itemList[i]
+		if not row then
+			row = CreateFrame('Frame', nil, window.scrollChild)
+			row:SetSize(window.scrollChild:GetWidth(), rowHeight)
+
+			-- Icon
+			row.icon = row:CreateTexture(nil, 'ARTWORK')
+			row.icon:SetSize(rowHeight - 4, rowHeight - 4)
+			row.icon:SetPoint('LEFT', 5, 0)
+
+			-- Item level text
+			row.ilvl = row:CreateFontString(nil, 'ARTWORK', 'GameFontNormal')
+			row.ilvl:SetPoint('LEFT', row.icon, 'RIGHT', 5, 0)
+			row.ilvl:SetWidth(40)
+			row.ilvl:SetJustifyH('LEFT')
+
+			-- Item name text
+			row.name = row:CreateFontString(nil, 'ARTWORK', 'GameFontNormal')
+			row.name:SetPoint('LEFT', row.ilvl, 'RIGHT', 5, 0)
+			row.name:SetPoint('RIGHT', -5, 0)
+			row.name:SetJustifyH('LEFT')
+
+			-- Make row clickable for tooltip
+			row:EnableMouse(true)
+			row:SetScript(
+				'OnEnter',
+				function()
+					if row.itemLink then
+						GameTooltip:SetOwner(row, 'ANCHOR_RIGHT')
+						GameTooltip:SetHyperlink(row.itemLink)
+						GameTooltip:Show()
+					end
+				end
+			)
+			row:SetScript(
+				'OnLeave',
+				function()
+					GameTooltip:Hide()
+				end
+			)
+
+			window.itemList[i] = row
+		end
+
+		-- Update row data
+		row:SetPoint('TOPLEFT', window.scrollChild, 'TOPLEFT', 3, -yOffset)
+		row.itemLink = item.link
+
+		-- Set icon
+		local icon = C_Item.GetItemIconByID(item.link)
+		if icon then
+			row.icon:SetTexture(icon)
+		end
+
+		-- Set ilvl with gear rating color (using game's GetItemQualityColor)
+		local r, g, b = C_Item.GetItemQualityColor(item.quality)
+		row.ilvl:SetText(tostring(item.level))
+		row.ilvl:SetTextColor(r, g, b)
+
+		-- Set name with quality color
+		local qualityColor = qualityColors[item.quality] or '|cffffffff'
+		row.name:SetText(qualityColor .. (item.name or 'Unknown') .. '|r')
+
+		row:Show()
+		yOffset = yOffset + rowHeight
+	end
+
+	-- Update scroll child height
+	window.scrollChild:SetHeight(math.max(yOffset, 1))
+end
+
+---Update scrapping list window visibility based on item count and manual toggle
+function module:UpdateScrappingListVisibility()
+	if not self.scrappingListWindow or not self.scrappingListToggleButton then
+		return
+	end
+
+	if not ScrappingMachineFrame or not ScrappingMachineFrame:IsShown() then
+		self.scrappingListWindow:Hide()
+		self.scrappingListToggleButton:Hide()
+		return
+	end
+
+	local items = self:GetPendingScrapItems()
+	local hasItems = #items > 0
+
+	-- If manually hidden, show toggle button when there are items
+	if self.DB.scrappingListManualHide then
+		self.scrappingListWindow:Hide()
+		if hasItems then
+			self.scrappingListToggleButton:Show()
+		else
+			self.scrappingListToggleButton:Hide()
+		end
+	else
+		-- Auto show/hide based on items
+		if hasItems then
+			self.scrappingListWindow:Show()
+			self.scrappingListToggleButton:Hide()
+		else
+			self.scrappingListWindow:Hide()
+			self.scrappingListToggleButton:Hide()
+		end
+	end
+end
+
+----------------------------------------------------------------------------------------------------
+-- Utility Functions
+----------------------------------------------------------------------------------------------------
 
 ---Get map of pending items
 ---@return table<string, boolean>
