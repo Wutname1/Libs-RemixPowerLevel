@@ -6,11 +6,6 @@ local LDBIcon = LibStub('LibDBIcon-1.0')
 -- Initialize logger if Libs-AddonTools is available
 if LibAT and LibAT.Logger then
 	LibRTC.logger = LibAT.Logger.RegisterAddon('Libs-RemixPowerLevel')
-else
-	-- Fallback to print if logger not available
-	LibRTC.logger = function(message)
-		print('[Libs-RemixPowerLevel]', message)
-	end
 end
 
 -- MOP: Timerunner's Advantage
@@ -373,11 +368,6 @@ function LibRTC:OnInitialize()
 end
 
 function LibRTC:OnEnable()
-	-- Log addon version/load for debugging
-	if self.logger then
-		self.logger.info('Libs-RemixPowerLevel loaded - commit e1e6085')
-	end
-
 	if IsTimerunnerMode() then
 		-- Add tooltip processor
 		TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, TooltipProcessor)

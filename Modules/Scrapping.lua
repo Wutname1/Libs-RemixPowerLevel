@@ -967,10 +967,6 @@ end
 
 ---Clear all pending scrap items (called when filters change)
 function module:ClearFilteredPendingItems()
-	-- When filters change, just clear all pending items like Blizzard does
-	if LibRTC.logger then
-		LibRTC.logger.info('ClearFilteredPendingItems called - clearing all pending items')
-	end
 	C_ScrappingMachineUI.RemoveAllScrapItems()
 end
 
