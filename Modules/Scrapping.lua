@@ -249,10 +249,16 @@ function module:ScanItemAffixes(itemLink)
 		return affixes
 	end
 
+	scannerTooltip:SetOwner(UIParent, 'ANCHOR_NONE')
 	scannerTooltip:ClearLines()
 	scannerTooltip:SetHyperlink(itemLink)
 
 	local numLines = scannerTooltip:NumLines()
+
+	-- Debug: log if we're getting 0 lines
+	if LibRTC.logger and debugLogCount == 1 then
+		LibRTC.logger.debug("ScanItemAffixes raw: NumLines=" .. tostring(numLines) .. " for " .. tostring(itemLink))
+	end
 
 	-- Scan all tooltip lines for text and icons
 	for i = 1, numLines do
