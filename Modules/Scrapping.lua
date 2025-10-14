@@ -313,9 +313,14 @@ function module:HasBlacklistedAffix(itemLink)
 		end
 		LibRTC.logger.debug("Blacklist contains: " .. table.concat(blacklistItems, ", "))
 
-		LibRTC.logger.debug("Tooltip lines found:")
+		local affixCount = 0
+		for _ in pairs(affixes) do
+			affixCount = affixCount + 1
+		end
+		LibRTC.logger.debug("Found " .. affixCount .. " tooltip lines")
+
 		for tooltipLine, _ in pairs(affixes) do
-			LibRTC.logger.debug("  - " .. tooltipLine)
+			LibRTC.logger.debug("  Line: " .. tooltipLine)
 		end
 	end
 
