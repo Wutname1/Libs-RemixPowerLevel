@@ -1,6 +1,6 @@
 ---@class LibRTC
 local LibRTC = LibStub('AceAddon-3.0'):GetAddon('Libs-RemixPowerLevel')
----@class LibRTC.Module.Scrapping : AceModule
+---@class LibRTC.Module.Scrapping : AceModule, AceEvent-3.0
 local module = LibRTC:NewModule('Scrapping', 'AceEvent-3.0')
 module.DisplayName = 'Auto Scrapper'
 module.description = 'Automatically scrap items based on filters'
@@ -210,6 +210,10 @@ function module:OnDisable()
 	if self.affixWindow then
 		self.affixWindow:Hide()
 	end
+
+	-- Unregister events
+	self:UnregisterEvent('BAG_UPDATE_DELAYED')
+	self:UnregisterEvent('SCRAPPING_MACHINE_PENDING_ITEM_CHANGED')
 end
 
 ----------------------------------------------------------------------------------------------------
@@ -598,9 +602,14 @@ function module:InitUI()
 	ScrappingMachineFrame:HookScript(
 		'OnShow',
 		function()
-			frame:Show()
-			self:RefreshItemList()
-			self:AutoScrap()
+			-- Only show if module is enabled
+			if self.DB and self.DB.enabled then
+				frame:Show()
+				self:RefreshItemList()
+				self:AutoScrap()
+			else
+				frame:Hide()
+			end
 		end
 	)
 
@@ -615,20 +624,22 @@ function module:InitUI()
 		end
 	)
 
-	LibRTC:RegisterEvent(
+	self:RegisterEvent(
 		'BAG_UPDATE_DELAYED',
 		function()
-			if ScrappingMachineFrame:IsShown() then
+			if self.DB and self.DB.enabled and ScrappingMachineFrame:IsShown() then
 				self:RefreshItemList()
 			end
 		end
 	)
 
-	LibRTC:RegisterEvent(
+	self:RegisterEvent(
 		'SCRAPPING_MACHINE_PENDING_ITEM_CHANGED',
 		function()
-			self:RefreshItemList()
-			self:AutoScrap()
+			if self.DB and self.DB.enabled then
+				self:RefreshItemList()
+				self:AutoScrap()
+			end
 		end
 	)
 end
@@ -637,11 +648,18 @@ end
 ---@return table<string, boolean>
 function module:GetMappedPendingItems()
 	local pendingMap = {}
+	if not C_ScrappingMachineUI.HasScrappableItems() then
+		return pendingMap
+	end
+
 	for i = 1, SCRAPPING_MACHINE_MAX_SLOTS do
 		local itemLoc = C_ScrappingMachineUI.GetCurrentPendingScrapItemLocationByIndex(i - 1)
-		if itemLoc and itemLoc:IsValid() then
-			local bagID, slotID = itemLoc:GetBagAndSlot()
-			pendingMap[bagID .. '-' .. slotID] = true
+		if itemLoc then
+			local isValid = pcall(function() return itemLoc:IsValid() end)
+			if isValid and itemLoc:IsValid() then
+				local bagID, slotID = itemLoc:GetBagAndSlot()
+				pendingMap[bagID .. '-' .. slotID] = true
+			end
 		end
 	end
 	return pendingMap
