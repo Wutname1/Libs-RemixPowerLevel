@@ -488,10 +488,10 @@ function module:InitUI()
 
 	-- Quality label
 	local qualityLabel = frame:CreateFontString(nil, 'ARTWORK', 'GameFontNormalSmall')
-	qualityLabel:SetPoint('TOPLEFT', frame, 'TOPLEFT', 15, -30)
+	qualityLabel:SetPoint('TOPLEFT', frame, 'TOPLEFT', 20, -40)
 	qualityLabel:SetText('Max Quality:')
 
-	-- Quality dropdown
+	-- Quality dropdown using modern WowStyle1FilterDropdownTemplate
 	local qualityTexts = {
 		[Enum.ItemQuality.Common] = '|cffFFFFFFCommon|r',
 		[Enum.ItemQuality.Uncommon] = '|cff1EFF00Uncommon|r',
@@ -499,14 +499,14 @@ function module:InitUI()
 		[Enum.ItemQuality.Epic] = '|cffA335EEEpic|r'
 	}
 
-	local qualityDropdown = CreateFrame('Frame', 'LibsRemixPowerLevelQualityDropdown', frame, 'UIDropDownMenuTemplate')
-	qualityDropdown:SetPoint('TOPLEFT', qualityLabel, 'BOTTOMLEFT', -15, -5)
-	UIDropDownMenu_SetWidth(qualityDropdown, 200)
+	local qualityDropdown = CreateFrame('DropdownButton', nil, frame, 'WowStyle1FilterDropdownTemplate')
+	qualityDropdown:SetPoint('LEFT', qualityLabel, 'RIGHT', 5, 0)
+	qualityDropdown:SetSize(200, 22)
+	qualityDropdown:SetText(qualityTexts[module.DB.maxQuality] or '|cff0070DDRare|r')
 
-	-- Initialize dropdown with function that gets called each time it opens
-	UIDropDownMenu_Initialize(
-		qualityDropdown,
-		function(_, level)
+	-- Setup quality dropdown generator
+	qualityDropdown:SetupMenu(
+		function(_, rootDescription)
 			local qualities = {
 				{text = '|cffFFFFFFCommon|r', value = Enum.ItemQuality.Common},
 				{text = '|cff1EFF00Uncommon|r', value = Enum.ItemQuality.Uncommon},
@@ -514,31 +514,31 @@ function module:InitUI()
 				{text = '|cffA335EEEpic|r', value = Enum.ItemQuality.Epic}
 			}
 			for _, quality in ipairs(qualities) do
-				local info = UIDropDownMenu_CreateInfo()
-				info.text = quality.text
-				info.value = quality.value
-				info.checked = module.DB.maxQuality == quality.value
-				info.func = function()
-					module.DB.maxQuality = quality.value
-					UIDropDownMenu_SetText(qualityDropdown, quality.text)
-					module:UpdateAll()
+				local button =
+					rootDescription:CreateButton(
+					quality.text,
+					function()
+						module.DB.maxQuality = quality.value
+						qualityDropdown:SetText(quality.text)
+						module:UpdateAll()
+					end
+				)
+				-- Mark current selection with checkmark
+				if module.DB.maxQuality == quality.value then
+					button:SetRadio(true)
 				end
-				UIDropDownMenu_AddButton(info, level)
 			end
 		end
 	)
 
-	-- Set initial text from saved value
-	UIDropDownMenu_SetText(qualityDropdown, qualityTexts[module.DB.maxQuality])
-
 	-- Min level label
 	local minLevelLabel = frame:CreateFontString(nil, 'ARTWORK', 'GameFontNormalSmall')
-	minLevelLabel:SetPoint('TOPLEFT', qualityDropdown, 'BOTTOMLEFT', 15, -5)
+	minLevelLabel:SetPoint('TOPLEFT', qualityLabel, 'BOTTOMLEFT', 0, -15)
 	minLevelLabel:SetText('Min Item Level Difference:')
 
 	-- Min level editbox
 	local minLevelBox = CreateFrame('EditBox', nil, frame, 'InputBoxTemplate')
-	minLevelBox:SetPoint('TOPLEFT', minLevelLabel, 'BOTTOMLEFT', 5, -5)
+	minLevelBox:SetPoint('LEFT', minLevelLabel, 'RIGHT', 5, 0)
 	minLevelBox:SetSize(50, 20)
 	minLevelBox:SetAutoFocus(false)
 	minLevelBox:SetMaxLetters(3)
@@ -557,11 +557,39 @@ function module:InitUI()
 		end
 	)
 
-	-- Affix blacklist button (moved to right of min level box)
-	local affixButton = CreateFrame('Button', nil, frame, 'UIPanelButtonTemplate')
-	affixButton:SetSize(120, 22)
-	affixButton:SetPoint('LEFT', minLevelBox, 'RIGHT', 10, 0)
-	affixButton:SetText('Affix Blacklist')
+	-- Affix blacklist button using error UI's black style
+	local affixButton = CreateFrame('Button', nil, frame)
+	affixButton:SetSize(200, 25)
+	affixButton:SetPoint('TOPLEFT', minLevelLabel, 'BOTTOMLEFT', 0, -10)
+
+	affixButton:SetNormalAtlas('auctionhouse-nav-button')
+	affixButton:SetHighlightAtlas('auctionhouse-nav-button-highlight')
+	affixButton:SetPushedAtlas('auctionhouse-nav-button-select')
+	affixButton:SetDisabledAtlas('UI-CastingBar-TextBox')
+
+	-- Texture coordinate manipulation for button effect
+	local normalTexture = affixButton:GetNormalTexture()
+	normalTexture:SetTexCoord(0, 1, 0, 0.7)
+
+	affixButton.Text = affixButton:CreateFontString(nil, 'OVERLAY', 'GameFontNormal')
+	affixButton.Text:SetPoint('CENTER')
+	affixButton.Text:SetText('Affix & Stat Blacklist')
+	affixButton.Text:SetTextColor(1, 1, 1, 1)
+
+	affixButton:HookScript(
+		'OnDisable',
+		function(btn)
+			btn.Text:SetTextColor(0.6, 0.6, 0.6, 0.6)
+		end
+	)
+
+	affixButton:HookScript(
+		'OnEnable',
+		function(btn)
+			btn.Text:SetTextColor(1, 1, 1, 1)
+		end
+	)
+
 	affixButton:SetScript(
 		'OnClick',
 		function()
@@ -571,7 +599,7 @@ function module:InitUI()
 
 	-- Auto scrap checkbox
 	local autoScrapCheck = CreateFrame('CheckButton', nil, frame, 'UICheckButtonTemplate')
-	autoScrapCheck:SetPoint('TOPLEFT', minLevelBox, 'BOTTOMLEFT', -5, -5)
+	autoScrapCheck:SetPoint('TOPLEFT', affixButton, 'BOTTOMLEFT', 0, -2)
 	autoScrapCheck.text:SetText('Auto Scrap')
 	autoScrapCheck:SetChecked(module.DB.autoScrap)
 	autoScrapCheck:SetScript(
