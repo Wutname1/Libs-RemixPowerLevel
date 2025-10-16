@@ -488,7 +488,7 @@ function module:InitUI()
 
 	-- Quality label
 	local qualityLabel = frame:CreateFontString(nil, 'ARTWORK', 'GameFontNormalSmall')
-	qualityLabel:SetPoint('TOPLEFT', frame, 'TOPLEFT', 20, -40)
+	qualityLabel:SetPoint('TOPLEFT', frame, 'TOPLEFT', 18, -40)
 	qualityLabel:SetText('Max Quality:')
 
 	-- Quality dropdown using modern WowStyle1FilterDropdownTemplate
@@ -538,7 +538,7 @@ function module:InitUI()
 
 	-- Min level editbox
 	local minLevelBox = CreateFrame('EditBox', nil, frame, 'InputBoxTemplate')
-	minLevelBox:SetPoint('LEFT', minLevelLabel, 'RIGHT', 5, 0)
+	minLevelBox:SetPoint('LEFT', minLevelLabel, 'RIGHT', 10, 0)
 	minLevelBox:SetSize(50, 20)
 	minLevelBox:SetAutoFocus(false)
 	minLevelBox:SetMaxLetters(3)
@@ -559,7 +559,7 @@ function module:InitUI()
 
 	-- Affix blacklist button using error UI's black style
 	local affixButton = CreateFrame('Button', nil, frame)
-	affixButton:SetSize(200, 25)
+	affixButton:SetSize(180, 25)
 	affixButton:SetPoint('TOPLEFT', minLevelLabel, 'BOTTOMLEFT', 0, -10)
 
 	affixButton:SetNormalAtlas('auctionhouse-nav-button')
@@ -615,18 +615,19 @@ function module:InitUI()
 
 	-- Scroll frame for items with modern scrollbar and background
 	local scrollFrame = CreateFrame('ScrollFrame', nil, frame)
-	scrollFrame:SetPoint('TOPLEFT', autoScrapCheck, 'BOTTOMLEFT', 5, -5)
+	scrollFrame:SetPoint('TOPLEFT', autoScrapCheck, 'BOTTOMLEFT', 0, -8)
 	scrollFrame:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', -25, 10)
 
 	-- Add background texture
 	scrollFrame.bg = scrollFrame:CreateTexture(nil, 'BACKGROUND')
-	scrollFrame.bg:SetAllPoints()
+	scrollFrame.bg:SetPoint('TOPLEFT', scrollFrame, 'TOPLEFT', -8, 8)
+	scrollFrame.bg:SetPoint('BOTTOMRIGHT', scrollFrame, 'BOTTOMRIGHT')
 	scrollFrame.bg:SetAtlas('auctionhouse-background-index', true)
 
 	-- Modern minimal scrollbar
 	scrollFrame.ScrollBar = CreateFrame('EventFrame', nil, scrollFrame, 'MinimalScrollBar')
-	scrollFrame.ScrollBar:SetPoint('TOPLEFT', scrollFrame, 'TOPRIGHT', 6, 0)
-	scrollFrame.ScrollBar:SetPoint('BOTTOMLEFT', scrollFrame, 'BOTTOMRIGHT', 6, 0)
+	scrollFrame.ScrollBar:SetPoint('TOPLEFT', scrollFrame.bg, 'TOPRIGHT', 6, 0)
+	scrollFrame.ScrollBar:SetPoint('BOTTOMLEFT', scrollFrame.bg, 'BOTTOMRIGHT', 6, 0)
 	ScrollUtil.InitScrollFrameWithScrollBar(scrollFrame, scrollFrame.ScrollBar)
 
 	local scrollChild = CreateFrame('Frame', nil, scrollFrame)
@@ -1299,10 +1300,38 @@ function module:ShowAffixBlacklistWindow()
 		addBox:SetAutoFocus(false)
 		addBox:SetMaxLetters(50)
 
-		local addButton = CreateFrame('Button', nil, window, 'UIPanelButtonTemplate')
-		addButton:SetSize(80, 22)
+		-- Add button using error UI's black style
+		local addButton = CreateFrame('Button', nil, window)
+		addButton:SetSize(80, 25)
 		addButton:SetPoint('LEFT', addBox, 'RIGHT', 5, 0)
-		addButton:SetText('Add')
+
+		addButton:SetNormalAtlas('auctionhouse-nav-button')
+		addButton:SetHighlightAtlas('auctionhouse-nav-button-highlight')
+		addButton:SetPushedAtlas('auctionhouse-nav-button-select')
+		addButton:SetDisabledAtlas('UI-CastingBar-TextBox')
+
+		local addNormalTexture = addButton:GetNormalTexture()
+		addNormalTexture:SetTexCoord(0, 1, 0, 0.7)
+
+		addButton.Text = addButton:CreateFontString(nil, 'OVERLAY', 'GameFontNormal')
+		addButton.Text:SetPoint('CENTER')
+		addButton.Text:SetText('Add')
+		addButton.Text:SetTextColor(1, 1, 1, 1)
+
+		addButton:HookScript(
+			'OnDisable',
+			function(btn)
+				btn.Text:SetTextColor(0.6, 0.6, 0.6, 0.6)
+			end
+		)
+
+		addButton:HookScript(
+			'OnEnable',
+			function(btn)
+				btn.Text:SetTextColor(1, 1, 1, 1)
+			end
+		)
+
 		addButton:SetScript(
 			'OnClick',
 			function()
@@ -1406,10 +1435,37 @@ function module:RefreshBlacklistDisplay()
 			btn.text:SetPoint('RIGHT', 0, 0)
 			btn.text:SetJustifyH('LEFT')
 
-			btn.deleteBtn = CreateFrame('Button', nil, btn, 'UIPanelButtonTemplate')
-			btn.deleteBtn:SetSize(65, 20)
+			-- Remove button using error UI's black style
+			btn.deleteBtn = CreateFrame('Button', nil, btn)
+			btn.deleteBtn:SetSize(65, 22)
 			btn.deleteBtn:SetPoint('RIGHT', -5, 0)
-			btn.deleteBtn:SetText('Remove')
+
+			btn.deleteBtn:SetNormalAtlas('auctionhouse-nav-button')
+			btn.deleteBtn:SetHighlightAtlas('auctionhouse-nav-button-highlight')
+			btn.deleteBtn:SetPushedAtlas('auctionhouse-nav-button-select')
+			btn.deleteBtn:SetDisabledAtlas('UI-CastingBar-TextBox')
+
+			local deleteNormalTexture = btn.deleteBtn:GetNormalTexture()
+			deleteNormalTexture:SetTexCoord(0, 1, 0, 0.7)
+
+			btn.deleteBtn.Text = btn.deleteBtn:CreateFontString(nil, 'OVERLAY', 'GameFontNormalSmall')
+			btn.deleteBtn.Text:SetPoint('CENTER')
+			btn.deleteBtn.Text:SetText('Remove')
+			btn.deleteBtn.Text:SetTextColor(1, 1, 1, 1)
+
+			btn.deleteBtn:HookScript(
+				'OnDisable',
+				function(delBtn)
+					delBtn.Text:SetTextColor(0.6, 0.6, 0.6, 0.6)
+				end
+			)
+
+			btn.deleteBtn:HookScript(
+				'OnEnable',
+				function(delBtn)
+					delBtn.Text:SetTextColor(1, 1, 1, 1)
+				end
+			)
 
 			window.blacklistButtons[i] = btn
 		end
