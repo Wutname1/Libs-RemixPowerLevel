@@ -27,7 +27,7 @@ The auto scrapper helps manage large amounts of gear during Legion Remix by auto
 
 **Auto Scrapper UI:**
 
-![Auto Scrapper Example](https://media.forgecdn.net/attachments/1357/560/autoscrap-png.png)
+![Auto Scrapper Example](https://media.forgecdn.net/attachments/1360/376/autoscrap-png.png)
 
 **Legion Remix:**
 
