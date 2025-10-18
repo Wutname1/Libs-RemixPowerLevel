@@ -227,26 +227,34 @@ local function GetTop10Players()
 			end
 
 			-- Check for Legion Remix Infinite Power
+			local versatility = 0
 			if IsLegionRemix() then
 				local powerData = C_UnitAuras.GetAuraDataBySpellName(unit, 'Infinite Power')
 				if powerData ~= nil then
 					for i = 1, #powerData.points do
 						powerLevel = powerLevel + (powerData.points[i] or 0)
 					end
+					-- Versatility is at index 5
+					versatility = powerData.points[5] or 0
 				end
 			end
 
 			if powerLevel > 0 then
-				table.insert(players, {name = fullName, power = powerLevel})
+				table.insert(players, {name = fullName, power = powerLevel, versatility = versatility})
 			end
 		end
 	end
 
-	-- Sort by power level descending
+	-- Sort by selected criteria (power or versatility)
+	local sortBy = LibRTC.dbobj and LibRTC.dbobj.profile.sortBy or 'power'
 	table.sort(
 		players,
 		function(a, b)
-			return a.power > b.power
+			if sortBy == 'versatility' and IsLegionRemix() then
+				return a.versatility > b.versatility
+			else
+				return a.power > b.power
+			end
 		end
 	)
 
@@ -313,6 +321,20 @@ local function GetOptions()
 						LDBIcon:Hide('Libs-RemixPowerLevel')
 					end
 				end
+			},
+			sortBy = {
+				type = 'select',
+				name = 'Sort Top 10 By',
+				desc = 'Choose how to sort the top 10 players in the minimap tooltip',
+				order = 22,
+				width = 'full',
+				values = {
+					power = 'Total Infinite Power',
+					versatility = 'Est. Limits Unbound'
+				},
+				hidden = function()
+					return not IsLegionRemix()
+				end
 			}
 		}
 	}
@@ -323,6 +345,7 @@ function LibRTC:OnInitialize()
 	local databaseDefaults = {
 		showInCharacterScreen = true,
 		showInTooltip = true,
+		sortBy = 'power', -- 'power' or 'versatility'
 		minimap = {
 			hide = false
 		}
@@ -413,9 +436,19 @@ function LibRTC:OnInitialize()
 				if #top10 == 0 then
 					tooltip:AddLine('|cffFFAA00No power levels detected|r')
 				else
-					tooltip:AddLine('|cff00FF98Top 10 Players:|r')
-					for i, player in ipairs(top10) do
-						tooltip:AddLine(string.format('%s |cffFFFFFF%s|r', comma_value(tostring(player.power)), player.name))
+					if IsLegionRemix() then
+						tooltip:AddDoubleLine('|cff00FF98Top 10 Players:|r', '|cffFFD700Est. Limits Unbound|r')
+						for _, player in ipairs(top10) do
+							tooltip:AddDoubleLine(
+								string.format('%s |cffFFFFFF%s|r', comma_value(tostring(player.power)), player.name),
+								'|cffFFD700' .. comma_value(tostring(player.versatility))
+							)
+						end
+					else
+						tooltip:AddLine('|cff00FF98Top 10 Players:|r')
+						for _, player in ipairs(top10) do
+							tooltip:AddLine(string.format('%s |cffFFFFFF%s|r', comma_value(tostring(player.power)), player.name))
+						end
 					end
 				end
 
