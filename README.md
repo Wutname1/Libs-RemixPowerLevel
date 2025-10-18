@@ -9,10 +9,10 @@ Displays power level information for Timerunner characters in both MOP Remix and
   - Legion Remix: Infinite Power total shown above main weapon slot
 - **Tooltips**: Mouse over yourself or other players to see detailed power information
   - MOP Remix: Total thread count
-  - Legion Remix: Infinite Power total, Versatility stat, and estimated Limits Unbound
+  - Legion Remix: Infinite Power total, and estimated Limits Unbound
 - **Minimap Button**: Hover to see your stats and top 10 power levels in your group or raid
-  - Shows your current Infinite Power/Threads, Versatility, and estimated Limits Unbound
-  - Lists top 10 players by total power level
+  - Shows your current Infinite Power/Threads, and estimated Limits Unbound
+  - Lists top 10 players by total power level or estimated Limits Unbound
 
 ### Auto Scrapper (Legion Remix)
 
@@ -42,20 +42,6 @@ The auto scrapper helps manage large amounts of gear during Legion Remix by auto
 **MOP Remix:**
 
 ![MOP Remix Example](https://media.forgecdn.net/attachments/872/876/examplescreen.png)
-
-## Technical Notes
-
-### MOP Remix
-- Tracks the "Timerunner's Advantage" buff which contains thread counts across 9 different thread types
-- Displays total thread count from all equipped threads on the Cloak of Infinite Potential
-
-### Legion Remix
-- Tracks the "Infinite Power" buff which provides multiple stats including Versatility
-- The buff contains an array of stat values (powerData.points)
-- **Infinite Power Total**: Sum of all stat values in the buff
-- **Versatility**: The first point value (index 1) from the Infinite Power buff
-- **Est. Limits Unbound**: Estimated from the Versatility value (same as Versatility)
-- Unlike MOP Remix threads, Legion power is tracked through buff values rather than item-based currencies
 
 ## Support
 

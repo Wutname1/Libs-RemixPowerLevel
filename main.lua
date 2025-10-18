@@ -185,7 +185,7 @@ local function UpdateItemSlotButton(button, unit)
 						button.infinitePowerCount:ClearAllPoints()
 						button.infinitePowerCount:SetPoint('BOTTOM', button.ThreadCountOverlay, 'TOP', 10, 3)
 					end
-					button.infinitePowerCount:SetFormattedText('|cff00FF00Aura Infinite Power: |cffFFFFFF' .. comma_value(total))
+					button.infinitePowerCount:SetFormattedText('|cff00FF00Infinite Power: |cffFFFFFF' .. comma_value(total))
 				elseif button.infinitePowerCount then
 					button.infinitePowerCount:SetText('')
 				end
@@ -439,10 +439,7 @@ function LibRTC:OnInitialize()
 					if IsLegionRemix() then
 						tooltip:AddDoubleLine('|cff00FF98Top 10 Players:|r', '|cffFFD700Est. Limits Unbound|r')
 						for _, player in ipairs(top10) do
-							tooltip:AddDoubleLine(
-								string.format('%s |cffFFFFFF%s|r', comma_value(tostring(player.power)), player.name),
-								'|cffFFD700' .. comma_value(tostring(player.versatility))
-							)
+							tooltip:AddDoubleLine(string.format('%s |cffFFFFFF%s|r', comma_value(tostring(player.power)), player.name), '|cffFFD700' .. comma_value(tostring(player.versatility)))
 						end
 					else
 						tooltip:AddLine('|cff00FF98Top 10 Players:|r')
