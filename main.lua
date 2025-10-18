@@ -2,9 +2,14 @@
 local LibRTC = LibStub('AceAddon-3.0'):NewAddon('Libs-RemixPowerLevel', 'AceEvent-3.0')
 local LDB = LibStub('LibDataBroker-1.1')
 local LDBIcon = LibStub('LibDBIcon-1.0')
+local debug = false
+
+--@do-not-package@
+debug = true
+--@end-do-not-package@
 
 -- Initialize logger if Libs-AddonTools is available
-if LibAT and LibAT.Logger then
+if LibAT and LibAT.Logger and debug then
 	LibRTC.logger = LibAT.Logger.RegisterAddon('Libs-RemixPowerLevel')
 end
 
@@ -61,11 +66,48 @@ local function TooltipProcessor(self)
 	if IsLegionRemix() then
 		local powerData = C_UnitAuras.GetAuraDataBySpellName(unit, 'Infinite Power')
 		if powerData ~= nil then
+			-- Log full powerData structure to find stat identifiers
+			if LibRTC and LibRTC.logger and unit == 'player' then
+				LibRTC.logger.debug('=== Full Infinite Power buff structure ===')
+				for k, v in pairs(powerData) do
+					if type(v) == 'table' then
+						LibRTC.logger.debug(k .. ' = table with ' .. tostring(#v) .. ' elements')
+						if k == 'points' then
+							for i = 1, #v do
+								LibRTC.logger.debug('  points[' .. i .. '] = ' .. tostring(v[i]))
+							end
+						else
+							for i = 1, math.min(5, #v) do
+								LibRTC.logger.debug('  ' .. k .. '[' .. i .. '] = ' .. tostring(v[i]))
+							end
+						end
+					else
+						LibRTC.logger.debug(k .. ' = ' .. tostring(v))
+					end
+				end
+
+				-- Check if there's a spell ID we can query
+				if powerData.spellId then
+					LibRTC.logger.debug('Spell ID: ' .. tostring(powerData.spellId))
+					local spellInfo = C_Spell.GetSpellInfo(powerData.spellId)
+					if spellInfo then
+						LibRTC.logger.debug('Spell Name: ' .. tostring(spellInfo.name))
+						LibRTC.logger.debug('Spell Icon: ' .. tostring(spellInfo.iconID))
+					end
+				end
+			end
+
 			local total = 0
 			for i = 1, #powerData.points do
 				total = total + powerData.points[i]
 			end
-			self:AddLine('\n|cff00FF00Aura Infinite Power |cffFFFFFF' .. comma_value(total))
+			-- Versatility is at index 5 in the points array
+			local versatility = powerData.points[5] or 0
+			-- Estimate Limits Unbound from Versatility (same value)
+			local limitsUnbound = versatility
+
+			self:AddLine('\n|cff00FF00Infinite Power |cffFFFFFF' .. comma_value(tostring(total)))
+			self:AddLine('|cffFFD700Est. Limits Unbound |cffFFFFFF' .. comma_value(tostring(limitsUnbound)))
 		end
 	end
 end
@@ -330,6 +372,34 @@ function LibRTC:OnInitialize()
 				tooltip:AddLine('|cffFFFFFFLibs - Remix Power Level|r')
 				tooltip:AddLine(' ')
 
+				-- Show player's own stats
+				if IsLegionRemix() then
+					local powerData = C_UnitAuras.GetAuraDataBySpellName('player', 'Infinite Power')
+					if powerData ~= nil then
+						local total = 0
+						for i = 1, #powerData.points do
+							total = total + powerData.points[i]
+						end
+						-- Versatility is at index 5 in the points array
+						local versatility = powerData.points[5] or 0
+						local limitsUnbound = versatility
+
+						tooltip:AddLine('|cff00FF00Infinite Power |cffFFFFFF' .. comma_value(tostring(total)))
+						tooltip:AddLine('|cffFFD700Est. Limits Unbound |cffFFFFFF' .. comma_value(tostring(limitsUnbound)))
+						tooltip:AddLine(' ')
+					end
+				elseif IsMOPRemix() then
+					local cloakData = C_UnitAuras.GetAuraDataBySpellName('player', "Timerunner's Advantage")
+					if cloakData ~= nil then
+						local total = 0
+						for i = 1, 9 do
+							total = total + cloakData.points[i]
+						end
+						tooltip:AddLine('|cff00FF98Threads |cffFFFFFF' .. comma_value(tostring(total)))
+						tooltip:AddLine(' ')
+					end
+				end
+
 				if not IsInGroup() then
 					tooltip:AddLine('|cffFFAA00Not in a group|r')
 					tooltip:AddLine(' ')
@@ -345,7 +415,7 @@ function LibRTC:OnInitialize()
 				else
 					tooltip:AddLine('|cff00FF98Top 10 Players:|r')
 					for i, player in ipairs(top10) do
-						tooltip:AddLine(string.format('%s |cffFFFFFF%s|r', comma_value(player.power), player.name))
+						tooltip:AddLine(string.format('%s |cffFFFFFF%s|r', comma_value(tostring(player.power)), player.name))
 					end
 				end
 

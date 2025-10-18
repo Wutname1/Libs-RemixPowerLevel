@@ -5,8 +5,14 @@ Displays power level information for Timerunner characters in both MOP Remix and
 ### Power Level Display
 
 - **Character Screen**: View your power level directly on the character sheet
-- **Tooltips**: Mouse over other players to see their power levels
-- **Minimap Button**: Shows top 10 power levels in your current group or raid
+  - MOP Remix: Thread count displayed next to Cloak of Infinite Potential
+  - Legion Remix: Infinite Power total shown above main weapon slot
+- **Tooltips**: Mouse over yourself or other players to see detailed power information
+  - MOP Remix: Total thread count
+  - Legion Remix: Infinite Power total, Versatility stat, and estimated Limits Unbound
+- **Minimap Button**: Hover to see your stats and top 10 power levels in your group or raid
+  - Shows your current Infinite Power/Threads, Versatility, and estimated Limits Unbound
+  - Lists top 10 players by total power level
 
 ### Auto Scrapper (Legion Remix)
 
@@ -37,9 +43,19 @@ The auto scrapper helps manage large amounts of gear during Legion Remix by auto
 
 ![MOP Remix Example](https://media.forgecdn.net/attachments/872/876/examplescreen.png)
 
-## Technical Note
+## Technical Notes
 
-Legion Remix tracks power as a currency rather than threads like MOP Remix. The addon displays the Infinite Power buff count as an indicator of total power level.
+### MOP Remix
+- Tracks the "Timerunner's Advantage" buff which contains thread counts across 9 different thread types
+- Displays total thread count from all equipped threads on the Cloak of Infinite Potential
+
+### Legion Remix
+- Tracks the "Infinite Power" buff which provides multiple stats including Versatility
+- The buff contains an array of stat values (powerData.points)
+- **Infinite Power Total**: Sum of all stat values in the buff
+- **Versatility**: The first point value (index 1) from the Infinite Power buff
+- **Est. Limits Unbound**: Estimated from the Versatility value (same as Versatility)
+- Unlike MOP Remix threads, Legion power is tracked through buff values rather than item-based currencies
 
 ## Support
 
