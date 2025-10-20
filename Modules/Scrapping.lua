@@ -74,7 +74,21 @@ local DbDefaults = {
 	maxQuality = Enum.ItemQuality.Rare,
 	minLevelDiff = 0,
 	affixBlacklist = {},
-	scrappingListManualHide = false
+	scrappingListManualHide = false,
+	notInGearset = true,
+	notWeapons = (PlayerGetTimerunningSeasonID and PlayerGetTimerunningSeasonID() == 2) or false,
+	useAdvancedFiltering = false,
+	advancedFilters = {
+		armor = {
+			maxQuality = Enum.ItemQuality.Epic,
+			minLevelDiff = 0
+		},
+		accessories = {
+			maxQuality = Enum.ItemQuality.Rare,
+			minLevelDiff = 0,
+			keepHighestDuplicates = true
+		}
+	}
 }
 
 -- Tooltip scanner for detecting affixes
@@ -185,6 +199,168 @@ function module:InitializeOptions()
 				type = 'description',
 				name = '\nAffix blacklist management is available in the scrapping machine UI.',
 				order = 20
+			},
+			advancedHeader = {
+				type = 'header',
+				name = 'Advanced Filtering',
+				order = 30
+			},
+			advancedDescription = {
+				type = 'description',
+				name = 'Enable advanced filtering to set separate rules for armor (has stats) and accessories (has affixes).',
+				order = 31,
+				fontSize = 'medium'
+			},
+			useAdvancedFiltering = {
+				type = 'toggle',
+				name = 'Enable Advanced Filtering',
+				desc = 'When enabled, use separate quality and ilvl settings for armor vs accessories. When disabled, the main quality dropdown applies to both.',
+				order = 32,
+				width = 'full',
+				disabled = function()
+					return not self.DB.enabled
+				end,
+				get = function()
+					return self.DB.useAdvancedFiltering
+				end,
+				set = function(_, value)
+					self.DB.useAdvancedFiltering = value
+				end
+			},
+			notInGearset = {
+				type = 'toggle',
+				name = "Don't Scrap Items in Equipment Sets",
+				desc = 'Protect items that are part of any equipment set from being scrapped.',
+				order = 33,
+				width = 'full',
+				disabled = function()
+					return not self.DB.enabled
+				end,
+				get = function()
+					return self.DB.notInGearset
+				end,
+				set = function(_, value)
+					self.DB.notInGearset = value
+				end
+			},
+			notWeapons = {
+				type = 'toggle',
+				name = "Don't Scrap Weapons",
+				desc = 'Protect all weapons from being scrapped. Enabled by default for Legion Remix (Season 2).',
+				order = 34,
+				width = 'full',
+				disabled = function()
+					return not self.DB.enabled
+				end,
+				get = function()
+					return self.DB.notWeapons
+				end,
+				set = function(_, value)
+					self.DB.notWeapons = value
+				end
+			},
+			armorGroup = {
+				type = 'group',
+				name = 'Armor Settings',
+				desc = 'Armor items have stats (Critical Strike, Haste, Mastery, Versatility, etc.)',
+				order = 40,
+				inline = true,
+				disabled = function()
+					return not self.DB.enabled or not self.DB.useAdvancedFiltering
+				end,
+				args = {
+					armorMaxQuality = {
+						type = 'select',
+						name = 'Max Quality to Scrap',
+						desc = 'Only scrap armor up to this quality level',
+						order = 1,
+						values = {
+							[Enum.ItemQuality.Common] = '|cffFFFFFFCommon|r',
+							[Enum.ItemQuality.Uncommon] = '|cff1EFF00Uncommon|r',
+							[Enum.ItemQuality.Rare] = '|cff0070DDRare|r',
+							[Enum.ItemQuality.Epic] = '|cffA335EEEpic|r'
+						},
+						get = function()
+							return self.DB.advancedFilters.armor.maxQuality
+						end,
+						set = function(_, value)
+							self.DB.advancedFilters.armor.maxQuality = value
+						end
+					},
+					armorMinLevelDiff = {
+						type = 'range',
+						name = 'Min Item Level Difference',
+						desc = 'Only scrap armor this many levels below your equipped gear',
+						order = 2,
+						min = 0,
+						max = 50,
+						step = 1,
+						get = function()
+							return self.DB.advancedFilters.armor.minLevelDiff
+						end,
+						set = function(_, value)
+							self.DB.advancedFilters.armor.minLevelDiff = value
+						end
+					}
+				}
+			},
+			accessoriesGroup = {
+				type = 'group',
+				name = 'Accessories Settings',
+				desc = 'Accessories have affixes (special effects). Use Affix Blacklist to protect specific affixes.',
+				order = 50,
+				inline = true,
+				disabled = function()
+					return not self.DB.enabled or not self.DB.useAdvancedFiltering
+				end,
+				args = {
+					accessoriesMaxQuality = {
+						type = 'select',
+						name = 'Max Quality to Scrap',
+						desc = 'Only scrap accessories up to this quality level',
+						order = 1,
+						values = {
+							[Enum.ItemQuality.Common] = '|cffFFFFFFCommon|r',
+							[Enum.ItemQuality.Uncommon] = '|cff1EFF00Uncommon|r',
+							[Enum.ItemQuality.Rare] = '|cff0070DDRare|r',
+							[Enum.ItemQuality.Epic] = '|cffA335EEEpic|r'
+						},
+						get = function()
+							return self.DB.advancedFilters.accessories.maxQuality
+						end,
+						set = function(_, value)
+							self.DB.advancedFilters.accessories.maxQuality = value
+						end
+					},
+					accessoriesMinLevelDiff = {
+						type = 'range',
+						name = 'Min Item Level Difference',
+						desc = 'Only scrap accessories this many levels below your equipped gear',
+						order = 2,
+						min = 0,
+						max = 50,
+						step = 1,
+						get = function()
+							return self.DB.advancedFilters.accessories.minLevelDiff
+						end,
+						set = function(_, value)
+							self.DB.advancedFilters.accessories.minLevelDiff = value
+						end
+					},
+					keepHighestDuplicates = {
+						type = 'toggle',
+						name = 'Keep Only Highest iLvl Duplicate',
+						desc = 'When you have multiple of the same accessory, only scrap the lower item level versions and keep the highest.',
+						order = 3,
+						width = 'full',
+						get = function()
+							return self.DB.advancedFilters.accessories.keepHighestDuplicates
+						end,
+						set = function(_, value)
+							self.DB.advancedFilters.accessories.keepHighestDuplicates = value
+						end
+					}
+				}
 			}
 		}
 	}
@@ -250,6 +426,70 @@ function module:GetMinLevelForInvType(invType)
 		return minLevel
 	end
 	return nil
+end
+
+---Check if item is in an equipment set by scanning tooltip
+---@param bag number
+---@param slot number
+---@return boolean
+function module:IsInGearset(bag, slot)
+	if not bag or not slot or bag < 0 or slot < 1 then
+		return false
+	end
+
+	local success, result =
+		pcall(
+		function()
+			scannerTooltip:SetOwner(UIParent, 'ANCHOR_NONE')
+			scannerTooltip:SetBagItem(bag, slot)
+
+			for i = 1, scannerTooltip:NumLines() do
+				local line = _G['LibsRemixPowerLevelScannerTooltipTextLeft' .. i]
+				if line and line:GetText() and line:GetText():find(EQUIPMENT_SETS:format('.*')) then
+					scannerTooltip:Hide()
+					return true
+				end
+			end
+			scannerTooltip:Hide()
+			return false
+		end
+	)
+
+	if not success then
+		return false
+	end
+
+	return result
+end
+
+---Check if item is a weapon
+---@param invType Enum.InventoryType
+---@return boolean
+function module:IsWeapon(invType)
+	return invType == Enum.InventoryType.IndexWeaponType or invType == Enum.InventoryType.IndexShieldType or invType == Enum.InventoryType.Index2HweaponType or
+		invType == Enum.InventoryType.IndexWeaponmainhandType or
+		invType == Enum.InventoryType.IndexWeaponoffhandType or
+		invType == Enum.InventoryType.IndexRangedType or
+		invType == Enum.InventoryType.IndexRangedrightType or
+		invType == Enum.InventoryType.IndexHoldableType
+end
+
+---Get item category for filtering
+---@param invType Enum.InventoryType
+---@return string category 'armor', 'accessory', or 'weapon'
+function module:GetItemCategory(invType)
+	-- Check weapons first
+	if self:IsWeapon(invType) then
+		return 'weapon'
+	end
+
+	-- Check accessories
+	if invType == Enum.InventoryType.IndexNeckType or invType == Enum.InventoryType.IndexFingerType or invType == Enum.InventoryType.IndexTrinketType then
+		return 'accessory'
+	end
+
+	-- Everything else is armor
+	return 'armor'
 end
 
 ---Get all scrappable items in bags
@@ -328,20 +568,106 @@ end
 ---@param capReturn number|nil
 ---@return ScrappableItem[]
 function module:GetFilteredScrappableItems(capReturn)
-	local minLevelDiff = self.DB.minLevelDiff or 0
-	local maxQuality = self.DB.maxQuality or Enum.ItemQuality.Rare
-
 	local scrappableItems = self:GetScrappableItems()
 	local filteredItems = {}
+	local accessoryDuplicates = {} -- Track accessories for duplicate detection
 
 	for _, item in ipairs(scrappableItems) do
-		local equippedItemLevel = self:GetMinLevelForInvType(item.invType)
-		if equippedItemLevel and equippedItemLevel - item.level >= minLevelDiff and item.quality <= maxQuality then
-			if not self:HasBlacklistedAffix(item.link) then
+		local shouldInclude = true
+
+		-- Check if item is a weapon and weapons are disabled
+		if shouldInclude and self.DB.notWeapons and self:IsWeapon(item.invType) then
+			shouldInclude = false
+		end
+
+		-- Check if item is in a gearset
+		if shouldInclude and self.DB.notInGearset and C_EquipmentSet.CanUseEquipmentSets() and self:IsInGearset(item.bagID, item.slotID) then
+			shouldInclude = false
+		end
+
+		-- Check for blacklisted affixes
+		if shouldInclude and self:HasBlacklistedAffix(item.link) then
+			shouldInclude = false
+		end
+
+		-- Get equipped item level for this slot
+		local equippedItemLevel = nil
+		if shouldInclude then
+			equippedItemLevel = self:GetMinLevelForInvType(item.invType)
+			if not equippedItemLevel then
+				shouldInclude = false
+			end
+		end
+
+		-- Determine which filtering rules to apply
+		local minLevelDiff, maxQuality
+		local itemCategory = nil
+		if shouldInclude then
+			itemCategory = self:GetItemCategory(item.invType)
+
+			if self.DB.useAdvancedFiltering then
+				-- Use advanced filtering rules based on item category
+				if itemCategory == 'armor' then
+					minLevelDiff = self.DB.advancedFilters.armor.minLevelDiff
+					maxQuality = self.DB.advancedFilters.armor.maxQuality
+				elseif itemCategory == 'accessory' then
+					minLevelDiff = self.DB.advancedFilters.accessories.minLevelDiff
+					maxQuality = self.DB.advancedFilters.accessories.maxQuality
+				else
+					-- Skip weapons
+					shouldInclude = false
+				end
+			else
+				-- Use simple filtering (main UI quality dropdown sets both)
+				minLevelDiff = self.DB.minLevelDiff or 0
+				maxQuality = self.DB.maxQuality or Enum.ItemQuality.Rare
+			end
+		end
+
+		-- Apply quality and item level checks
+		if shouldInclude and equippedItemLevel then
+			if equippedItemLevel - item.level >= minLevelDiff and item.quality <= maxQuality then
+				-- Track accessories for duplicate detection
+				if itemCategory == 'accessory' and self.DB.useAdvancedFiltering and self.DB.advancedFilters.accessories.keepHighestDuplicates then
+					local itemName = C_Item.GetItemNameByID(item.link)
+					if itemName then
+						if not accessoryDuplicates[itemName] then
+							accessoryDuplicates[itemName] = {}
+						end
+						table.insert(accessoryDuplicates[itemName], item)
+					end
+				end
+
 				table.insert(filteredItems, item)
 
 				if capReturn and #filteredItems >= capReturn then
 					break
+				end
+			end
+		end
+	end
+
+	-- Handle duplicate accessories - keep only highest ilvl
+	if self.DB.useAdvancedFiltering and self.DB.advancedFilters.accessories.keepHighestDuplicates then
+		for itemName, duplicates in pairs(accessoryDuplicates) do
+			if #duplicates > 1 then
+				-- Sort by item level (descending)
+				table.sort(
+					duplicates,
+					function(a, b)
+						return a.level > b.level
+					end
+				)
+
+				-- Keep the highest, remove the rest from filteredItems
+				for i = 2, #duplicates do
+					local itemToRemove = duplicates[i]
+					for j = #filteredItems, 1, -1 do
+						if filteredItems[j].bagID == itemToRemove.bagID and filteredItems[j].slotID == itemToRemove.slotID then
+							table.remove(filteredItems, j)
+							break
+						end
+					end
 				end
 			end
 		end
@@ -597,9 +923,49 @@ function module:InitUI()
 		end
 	)
 
+	-- Advanced Settings button
+	local advancedButton = CreateFrame('Button', nil, frame)
+	advancedButton:SetSize(180, 25)
+	advancedButton:SetPoint('TOPLEFT', affixButton, 'BOTTOMLEFT', 0, -5)
+
+	advancedButton:SetNormalAtlas('auctionhouse-nav-button')
+	advancedButton:SetHighlightAtlas('auctionhouse-nav-button-highlight')
+	advancedButton:SetPushedAtlas('auctionhouse-nav-button-select')
+	advancedButton:SetDisabledAtlas('UI-CastingBar-TextBox')
+
+	-- Texture coordinate manipulation for button effect
+	local advancedNormalTexture = advancedButton:GetNormalTexture()
+	advancedNormalTexture:SetTexCoord(0, 1, 0, 0.7)
+
+	advancedButton.Text = advancedButton:CreateFontString(nil, 'OVERLAY', 'GameFontNormal')
+	advancedButton.Text:SetPoint('CENTER')
+	advancedButton.Text:SetText('Advanced Settings')
+	advancedButton.Text:SetTextColor(1, 1, 1, 1)
+
+	advancedButton:HookScript(
+		'OnDisable',
+		function(btn)
+			btn.Text:SetTextColor(0.6, 0.6, 0.6, 0.6)
+		end
+	)
+
+	advancedButton:HookScript(
+		'OnEnable',
+		function(btn)
+			btn.Text:SetTextColor(1, 1, 1, 1)
+		end
+	)
+
+	advancedButton:SetScript(
+		'OnClick',
+		function()
+			Settings.OpenToCategory("Lib's - Remix Power Level")
+		end
+	)
+
 	-- Auto scrap checkbox
 	local autoScrapCheck = CreateFrame('CheckButton', nil, frame, 'UICheckButtonTemplate')
-	autoScrapCheck:SetPoint('TOPLEFT', affixButton, 'BOTTOMLEFT', 0, -2)
+	autoScrapCheck:SetPoint('TOPLEFT', advancedButton, 'BOTTOMLEFT', 0, -2)
 	autoScrapCheck.text:SetText('Auto Scrap')
 	autoScrapCheck:SetChecked(module.DB.autoScrap)
 	autoScrapCheck:SetScript(
@@ -1181,9 +1547,9 @@ function module:ShowAffixBlacklistWindow()
 			window.portrait:Hide()
 		end
 		if window.TitleText then
-			window.TitleText:SetText('Affix Blacklist')
+			window.TitleText:SetText('Affix & Stat Blacklist')
 		elseif window.TitleContainer and window.TitleContainer.TitleText then
-			window.TitleContainer.TitleText:SetText('Affix Blacklist')
+			window.TitleContainer.TitleText:SetText('Affix & Stat Blacklist')
 		end
 
 		-- Instructions
@@ -1191,7 +1557,7 @@ function module:ShowAffixBlacklistWindow()
 		instructions:SetPoint('TOPLEFT', 15, -30)
 		instructions:SetPoint('TOPRIGHT', -15, -30)
 		instructions:SetJustifyH('LEFT')
-		instructions:SetText('Items with these stats/affixes will be excluded from auto-scrapping.\nSelect from dropdowns or enter custom text.')
+		instructions:SetText('Items with these stats or affixes will not be scrapped.\nSelect from dropdowns or enter custom text.')
 
 		-- Stats dropdown
 		local statsLabel = window:CreateFontString(nil, 'ARTWORK', 'GameFontNormalSmall')
