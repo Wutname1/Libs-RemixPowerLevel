@@ -211,8 +211,11 @@ local function GetTop10Players()
 	for i = 1, numMembers do
 		local unit = (isRaid and 'raid' or 'party') .. i
 		if UnitExists(unit) then
-			local name = UnitName(unit)
-			local realm = GetRealmName()
+			local name, realm = UnitName(unit)
+			-- If realm is nil, player is on same realm as us
+			if not realm or realm == '' then
+				realm = GetRealmName()
+			end
 			local fullName = name .. '-' .. realm
 			local powerLevel = 0
 
