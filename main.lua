@@ -216,6 +216,11 @@ local function GetTop10Players()
 			local fullName = name .. '-' .. realm
 			local powerLevel = 0
 
+			-- Get class color
+			local _, class = UnitClass(unit)
+			local classColor = C_ClassColor.GetClassColor(class)
+			local colorHex = classColor and classColor:GenerateHexColor() or 'ffffffff'
+
 			-- Check for MOP Remix threads
 			if IsMOPRemix() then
 				local cloakData = C_UnitAuras.GetAuraDataBySpellName(unit, "Timerunner's Advantage")
@@ -240,7 +245,7 @@ local function GetTop10Players()
 			end
 
 			if powerLevel > 0 then
-				table.insert(players, {name = fullName, power = powerLevel, versatility = versatility})
+				table.insert(players, {name = fullName, power = powerLevel, versatility = versatility, colorHex = colorHex})
 			end
 		end
 	end
@@ -439,12 +444,12 @@ function LibRTC:OnInitialize()
 					if IsLegionRemix() then
 						tooltip:AddDoubleLine('|cff00FF98Top 10 Players:|r', '|cffFFD700Est. Limits Unbound|r')
 						for _, player in ipairs(top10) do
-							tooltip:AddDoubleLine(string.format('%s |cffFFFFFF%s|r', comma_value(tostring(player.power)), player.name), '|cffFFD700' .. comma_value(tostring(player.versatility)))
+							tooltip:AddDoubleLine(string.format('%s |c%s%s|r', comma_value(tostring(player.power)), player.colorHex, player.name), '|cffFFD700' .. comma_value(tostring(player.versatility)))
 						end
 					else
 						tooltip:AddLine('|cff00FF98Top 10 Players:|r')
 						for _, player in ipairs(top10) do
-							tooltip:AddLine(string.format('%s |cffFFFFFF%s|r', comma_value(tostring(player.power)), player.name))
+							tooltip:AddLine(string.format('%s |c%s%s|r', comma_value(tostring(player.power)), player.colorHex, player.name))
 						end
 					end
 				end
