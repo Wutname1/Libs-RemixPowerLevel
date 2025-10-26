@@ -5,6 +5,9 @@ local module = LibRTC:NewModule('Scrapping', 'AceEvent-3.0', 'AceTimer-3.0')
 module.DisplayName = 'Auto Scrapper'
 module.description = 'Automatically scrap items based on filters'
 
+-- Debug flag - set to true to enable detailed logging
+local detailedLogs = false
+
 -- Constants
 local SCRAPPING_MACHINE_MAX_SLOTS = 9
 
@@ -95,12 +98,30 @@ local DbDefaults = {
 local scannerTooltip = CreateFrame('GameTooltip', 'LibsRemixPowerLevelScannerTooltip', nil, 'GameTooltipTemplate')
 scannerTooltip:SetOwner(UIParent, 'ANCHOR_NONE')
 
+-- Cache tables
+local tooltipAffixCache = {} -- Cache keyed by itemLink
+local gearsetCache = {} -- Cache keyed by "bag-slot"
+
 function module:OnInitialize()
 	module.Database = LibRTC.dbobj:RegisterNamespace('Scrapping', {profile = DbDefaults})
 	module.DB = module.Database.profile ---@type LibRTC.Module.Scrapping.DB
 
 	-- Add module options to parent addon options table
 	self:InitializeOptions()
+end
+
+---Clear all caches
+function module:ClearCaches()
+	if detailedLogs and LibRTC and LibRTC.logger then
+		LibRTC.logger.debug('ClearCaches: Clearing tooltip and gearset caches')
+	end
+	tooltipAffixCache = {}
+	gearsetCache = {}
+end
+
+---Clear only the gearset cache (items moved in bags)
+function module:ClearGearsetCache()
+	gearsetCache = {}
 end
 
 ---Add scrapping options to parent addon options
@@ -437,6 +458,12 @@ function module:IsInGearset(bag, slot)
 		return false
 	end
 
+	-- Check cache first
+	local cacheKey = bag .. '-' .. slot
+	if gearsetCache[cacheKey] ~= nil then
+		return gearsetCache[cacheKey]
+	end
+
 	local success, result =
 		pcall(
 		function()
@@ -456,9 +483,12 @@ function module:IsInGearset(bag, slot)
 	)
 
 	if not success then
+		gearsetCache[cacheKey] = false
 		return false
 	end
 
+	-- Cache the result
+	gearsetCache[cacheKey] = result
 	return result
 end
 
@@ -519,25 +549,62 @@ function module:GetScrappableItems()
 end
 
 ---Scan item tooltip to detect affixes
+---@param bagID number
+---@param slotID number
 ---@param itemLink string
 ---@return table<string, boolean>
-function module:ScanItemAffixes(itemLink)
+function module:ScanItemAffixes(bagID, slotID, itemLink)
 	local affixes = {}
-	if not itemLink then
+	if not itemLink or not bagID or not slotID then
 		return affixes
 	end
 
+	-- Check cache first
+	if tooltipAffixCache[itemLink] then
+		if detailedLogs and LibRTC and LibRTC.logger then
+			LibRTC.logger.debug(string.format('ScanItemAffixes: Using cached data for %s', itemLink))
+		end
+		return tooltipAffixCache[itemLink]
+	end
+
+	-- Use SetBagItem instead of SetHyperlink - this actually loads tooltip data
 	scannerTooltip:ClearLines()
-	scannerTooltip:SetHyperlink(itemLink)
+	scannerTooltip:SetOwner(UIParent, 'ANCHOR_NONE')
+	scannerTooltip:SetBagItem(bagID, slotID)
 
 	-- Scan all tooltip lines
-	for i = 1, scannerTooltip:NumLines() do
+	local itemName = C_Item.GetItemNameByID(itemLink) or 'Unknown'
+	local numLines = scannerTooltip:NumLines()
+
+	if detailedLogs and LibRTC and LibRTC.logger then
+		LibRTC.logger.debug(string.format('ScanItemAffixes: Scanning tooltip for %s bag=%d slot=%d (%d lines)', itemName, bagID, slotID, numLines))
+	end
+
+	for i = 1, numLines do
 		local line = _G['LibsRemixPowerLevelScannerTooltipTextLeft' .. i]
 		if line then
 			local text = line:GetText()
 			if text then
 				affixes[text] = true
+				if detailedLogs and LibRTC and LibRTC.logger then
+					LibRTC.logger.debug(string.format('  Line %d: "%s"', i, text))
+				end
 			end
+		end
+	end
+
+	scannerTooltip:Hide()
+
+	-- Only cache if we got data (tooltip loaded successfully)
+	-- Don't cache empty tooltips - they haven't loaded from server yet
+	if numLines > 0 then
+		tooltipAffixCache[itemLink] = affixes
+		if detailedLogs and LibRTC and LibRTC.logger then
+			LibRTC.logger.debug(string.format('ScanItemAffixes: Cached %d lines for %s', numLines, itemName))
+		end
+	else
+		if detailedLogs and LibRTC and LibRTC.logger then
+			LibRTC.logger.debug(string.format('ScanItemAffixes: NOT caching empty tooltip for %s - data not loaded yet', itemName))
 		end
 	end
 
@@ -545,17 +612,37 @@ function module:ScanItemAffixes(itemLink)
 end
 
 ---Check if item has any blacklisted affixes
+---@param bagID number
+---@param slotID number
 ---@param itemLink string
 ---@return boolean
-function module:HasBlacklistedAffix(itemLink)
+function module:HasBlacklistedAffix(bagID, slotID, itemLink)
 	if not self.DB.affixBlacklist then
+		if LibRTC and LibRTC.logger then
+			LibRTC.logger.debug('HasBlacklistedAffix: No blacklist configured')
+		end
 		return false
 	end
 
-	local affixes = self:ScanItemAffixes(itemLink)
+	local affixes = self:ScanItemAffixes(bagID, slotID, itemLink)
+
+	-- Log what we found in the tooltip
+	if detailedLogs and LibRTC and LibRTC.logger then
+		local tooltipLines = {}
+		for line in pairs(affixes) do
+			table.insert(tooltipLines, '"' .. line .. '"')
+		end
+		local itemName = C_Item.GetItemNameByID(itemLink) or 'Unknown'
+		LibRTC.logger.debug(string.format('HasBlacklistedAffix for %s: Found %d tooltip lines: [%s]', itemName, #tooltipLines, table.concat(tooltipLines, ', ')))
+	end
+
 	for affixText in pairs(affixes) do
 		for blacklistedAffix in pairs(self.DB.affixBlacklist) do
 			if affixText:find(blacklistedAffix, 1, true) then
+				-- Always log when an item is excluded (important for debugging)
+				if LibRTC and LibRTC.logger then
+					LibRTC.logger.debug(string.format('Item excluded from scrapping: %s - Contains blacklisted text: "%s" (found in: "%s")', itemLink, blacklistedAffix, affixText))
+				end
 				return true
 			end
 		end
@@ -586,7 +673,7 @@ function module:GetFilteredScrappableItems(capReturn)
 		end
 
 		-- Check for blacklisted affixes
-		if shouldInclude and self:HasBlacklistedAffix(item.link) then
+		if shouldInclude and self:HasBlacklistedAffix(item.bagID, item.slotID, item.link) then
 			shouldInclude = false
 		end
 
@@ -627,6 +714,12 @@ function module:GetFilteredScrappableItems(capReturn)
 		-- Apply quality and item level checks
 		if shouldInclude and equippedItemLevel then
 			if equippedItemLevel - item.level >= minLevelDiff and item.quality <= maxQuality then
+				-- Log items being added for scrapping (for debugging)
+				if detailedLogs and LibRTC and LibRTC.logger then
+					local itemName = C_Item.GetItemNameByID(item.link) or 'Unknown'
+					LibRTC.logger.debug(string.format('Item added for scrapping: %s (iLvl: %d, Category: %s)', itemName, item.level, itemCategory or 'unknown'))
+				end
+
 				-- Track accessories for duplicate detection
 				if itemCategory == 'accessory' and self.DB.useAdvancedFiltering and self.DB.advancedFilters.accessories.keepHighestDuplicates then
 					local itemName = C_Item.GetItemNameByID(item.link)
@@ -711,19 +804,41 @@ end
 function module:AutoScrapBatch()
 	local itemsToScrap = self:GetFilteredScrappableItems(SCRAPPING_MACHINE_MAX_SLOTS)
 
+	if detailedLogs and LibRTC and LibRTC.logger then
+		LibRTC.logger.debug(string.format('AutoScrapBatch: Found %d items to scrap', #itemsToScrap))
+	end
+
 	if #itemsToScrap < SCRAPPING_MACHINE_MAX_SLOTS then
-		if self:GetNumActiveScrap() >= #itemsToScrap then
+		local numActive = self:GetNumActiveScrap()
+		if detailedLogs and LibRTC and LibRTC.logger then
+			LibRTC.logger.debug(string.format('AutoScrapBatch: Have %d active scrap items, need %d items', numActive, #itemsToScrap))
+		end
+		if numActive >= #itemsToScrap then
+			if detailedLogs and LibRTC and LibRTC.logger then
+				LibRTC.logger.debug('AutoScrapBatch: Already have enough items in queue, skipping')
+			end
 			return
 		end
 	end
 
 	if C_ScrappingMachineUI.HasScrappableItems() then
+		if detailedLogs and LibRTC and LibRTC.logger then
+			LibRTC.logger.debug('AutoScrapBatch: HasScrappableItems returned true, skipping')
+		end
 		return
+	end
+
+	if detailedLogs and LibRTC and LibRTC.logger then
+		LibRTC.logger.debug('AutoScrapBatch: Clearing existing items and adding new batch')
 	end
 
 	C_ScrappingMachineUI.RemoveAllScrapItems()
 	for _, item in ipairs(itemsToScrap) do
-		self:ScrapItemFromBag(item.bagID, item.slotID)
+		local success = self:ScrapItemFromBag(item.bagID, item.slotID)
+		if detailedLogs and LibRTC and LibRTC.logger then
+			local itemName = C_Item.GetItemNameByID(item.link) or 'Unknown'
+			LibRTC.logger.debug(string.format('AutoScrapBatch: Attempting to scrap %s - %s', itemName, success and 'SUCCESS' or 'FAILED'))
+		end
 	end
 end
 
@@ -1031,6 +1146,9 @@ function module:InitUI()
 		'BAG_UPDATE_DELAYED',
 		function()
 			if self.DB and self.DB.enabled and ScrappingMachineFrame:IsShown() then
+				-- Only clear gearset cache (items may have moved slots)
+				-- Keep tooltip affix cache (itemLinks don't change)
+				self:ClearGearsetCache()
 				self:RefreshItemList()
 			end
 		end
@@ -1381,6 +1499,7 @@ end
 
 ---Update everything when filters change
 function module:UpdateAll()
+	self:ClearCaches()
 	self:ClearFilteredPendingItems()
 	self:RefreshItemList()
 	self:AutoScrap()
@@ -1580,8 +1699,14 @@ function module:ShowAffixBlacklistWindow()
 						function()
 							if module.DB.affixBlacklist[stat] then
 								module.DB.affixBlacklist[stat] = nil
+								if detailedLogs and LibRTC and LibRTC.logger then
+									LibRTC.logger.debug(string.format('Removed "%s" from blacklist, calling UpdateAll()', stat))
+								end
 							else
 								module.DB.affixBlacklist[stat] = true
+								if detailedLogs and LibRTC and LibRTC.logger then
+									LibRTC.logger.debug(string.format('Added "%s" to blacklist, calling UpdateAll()', stat))
+								end
 							end
 							self:RefreshBlacklistDisplay()
 							self:UpdateAll()
