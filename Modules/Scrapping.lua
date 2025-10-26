@@ -1146,9 +1146,10 @@ function module:InitUI()
 		'BAG_UPDATE_DELAYED',
 		function()
 			if self.DB and self.DB.enabled and ScrappingMachineFrame:IsShown() then
-				-- Only clear gearset cache (items may have moved slots)
-				-- Keep tooltip affix cache (itemLinks don't change)
-				self:ClearGearsetCache()
+				-- Don't clear any caches - they remain valid!
+				-- Tooltip cache: itemLinks don't change
+				-- Gearset cache: bag-slot membership rarely changes
+				-- Only clear when filters change (UpdateAll)
 				self:RefreshItemList()
 			end
 		end
