@@ -77,6 +77,7 @@ local DbDefaults = {
 	maxQuality = Enum.ItemQuality.Rare,
 	minLevelDiff = 0,
 	affixBlacklist = {},
+	statMode = 'any', -- 'any' (OR) or 'all' (AND)
 	scrappingListManualHide = false,
 	notInGearset = true,
 	notWeapons = (PlayerGetTimerunningSeasonID and PlayerGetTimerunningSeasonID() == 2) or false,
@@ -611,7 +612,7 @@ function module:ScanItemAffixes(bagID, slotID, itemLink)
 	return affixes
 end
 
----Check if item has any blacklisted affixes
+---Check if item has any blacklisted affixes or stats
 ---@param bagID number
 ---@param slotID number
 ---@param itemLink string
@@ -636,12 +637,69 @@ function module:HasBlacklistedAffix(bagID, slotID, itemLink)
 		LibRTC.logger.debug(string.format('HasBlacklistedAffix for %s: Found %d tooltip lines: [%s]', itemName, #tooltipLines, table.concat(tooltipLines, ', ')))
 	end
 
+	-- Separate blacklisted items into stats and affixes
+	local blacklistedStats = {}
+	local blacklistedAffixes = {}
+	local statSet = {}
+	for _, stat in ipairs(KNOWN_STATS) do
+		statSet[stat] = true
+	end
+
+	for blacklistedItem in pairs(self.DB.affixBlacklist) do
+		if statSet[blacklistedItem] then
+			table.insert(blacklistedStats, blacklistedItem)
+		else
+			table.insert(blacklistedAffixes, blacklistedItem)
+		end
+	end
+
+	-- Check affixes first (any match = exclude, traditional OR behavior)
 	for affixText in pairs(affixes) do
-		for blacklistedAffix in pairs(self.DB.affixBlacklist) do
+		for _, blacklistedAffix in ipairs(blacklistedAffixes) do
 			if affixText:find(blacklistedAffix, 1, true) then
 				-- Always log when an item is excluded (important for debugging)
 				if LibRTC and LibRTC.logger then
-					LibRTC.logger.debug(string.format('Item excluded from scrapping: %s - Contains blacklisted text: "%s" (found in: "%s")', itemLink, blacklistedAffix, affixText))
+					LibRTC.logger.debug(string.format('Item excluded from scrapping: %s - Contains blacklisted affix: "%s" (found in: "%s")', itemLink, blacklistedAffix, affixText))
+				end
+				return true
+			end
+		end
+	end
+
+	-- Check stats with AND/OR logic based on statMode
+	if #blacklistedStats > 0 then
+		local statMode = self.DB.statMode or 'any'
+		local foundStats = {}
+
+		-- Find which blacklisted stats are present on the item
+		for affixText in pairs(affixes) do
+			for _, blacklistedStat in ipairs(blacklistedStats) do
+				if affixText:find(blacklistedStat, 1, true) then
+					foundStats[blacklistedStat] = true
+				end
+			end
+		end
+
+		if statMode == 'all' then
+			-- AND logic: Item must have ALL blacklisted stats to be excluded
+			local hasAllStats = true
+			for _, blacklistedStat in ipairs(blacklistedStats) do
+				if not foundStats[blacklistedStat] then
+					hasAllStats = false
+					break
+				end
+			end
+			if hasAllStats then
+				if LibRTC and LibRTC.logger then
+					LibRTC.logger.debug(string.format('Item excluded from scrapping: %s - Has ALL blacklisted stats (AND mode)', itemLink))
+				end
+				return true
+			end
+		else
+			-- OR logic (default): Item has ANY blacklisted stat = exclude
+			for blacklistedStat in pairs(foundStats) do
+				if LibRTC and LibRTC.logger then
+					LibRTC.logger.debug(string.format('Item excluded from scrapping: %s - Contains blacklisted stat: "%s" (OR mode)', itemLink, blacklistedStat))
 				end
 				return true
 			end
@@ -1686,7 +1744,7 @@ function module:ShowAffixBlacklistWindow()
 
 		local statsDropdown = CreateFrame('DropdownButton', nil, window, 'WowStyle1FilterDropdownTemplate')
 		statsDropdown:SetPoint('TOPLEFT', statsLabel, 'BOTTOMLEFT', 0, -5)
-		statsDropdown:SetSize(200, 22)
+		statsDropdown:SetSize(150, 22)
 		statsDropdown:SetText('Add Stat')
 
 		-- Setup stats dropdown generator
@@ -1718,14 +1776,65 @@ function module:ShowAffixBlacklistWindow()
 			end
 		)
 
-		-- Affixes dropdown
+		-- Stat Mode button (between stats and affixes dropdowns)
+		local statModeButton = CreateFrame('Button', nil, window)
+		statModeButton:SetSize(60, 22)
+		statModeButton:SetPoint('LEFT', statsDropdown, 'RIGHT', 5, 0)
+
+		statModeButton:SetNormalAtlas('auctionhouse-nav-button')
+		statModeButton:SetHighlightAtlas('auctionhouse-nav-button-highlight')
+		statModeButton:SetPushedAtlas('auctionhouse-nav-button-select')
+
+		local statModeNormalTexture = statModeButton:GetNormalTexture()
+		statModeNormalTexture:SetTexCoord(0, 1, 0, 0.7)
+
+		statModeButton.Text = statModeButton:CreateFontString(nil, 'OVERLAY', 'GameFontNormal')
+		statModeButton.Text:SetPoint('CENTER')
+		statModeButton.Text:SetText(module.DB.statMode == 'all' and 'AND' or 'OR')
+		statModeButton.Text:SetTextColor(1, 1, 1, 1)
+
+		statModeButton:SetScript(
+			'OnClick',
+			function()
+				-- Toggle between 'any' (OR) and 'all' (AND)
+				if module.DB.statMode == 'any' then
+					module.DB.statMode = 'all'
+					statModeButton.Text:SetText('AND')
+				else
+					module.DB.statMode = 'any'
+					statModeButton.Text:SetText('OR')
+				end
+				self:UpdateAll()
+			end
+		)
+
+		-- Tooltip for stat mode button
+		statModeButton:SetScript(
+			'OnEnter',
+			function()
+				GameTooltip:SetOwner(statModeButton, 'ANCHOR_RIGHT')
+				GameTooltip:SetText('Stat Filter Mode', 1, 1, 1, 1, true)
+				GameTooltip:AddLine('OR: Keep items with ANY blacklisted stat', nil, nil, nil, true)
+				GameTooltip:AddLine('AND: Keep items only if they have ALL blacklisted stats', nil, nil, nil, true)
+				GameTooltip:Show()
+			end
+		)
+
+		statModeButton:SetScript(
+			'OnLeave',
+			function()
+				GameTooltip:Hide()
+			end
+		)
+
+		-- Affixes dropdown (moved 40px to the right relative to original position)
 		local affixLabel = window:CreateFontString(nil, 'ARTWORK', 'GameFontNormalSmall')
-		affixLabel:SetPoint('LEFT', statsLabel, 'RIGHT', 120, 0)
+		affixLabel:SetPoint('LEFT', statsLabel, 'RIGHT', 160, 0)
 		affixLabel:SetText('Affixes:')
 
 		local affixDropdown = CreateFrame('DropdownButton', nil, window, 'WowStyle1FilterDropdownTemplate')
 		affixDropdown:SetPoint('TOPLEFT', affixLabel, 'BOTTOMLEFT', 0, -5)
-		affixDropdown:SetSize(200, 22)
+		affixDropdown:SetSize(150, 22)
 		affixDropdown:SetText('Add Affix')
 
 		-- Setup affix dropdown generator
