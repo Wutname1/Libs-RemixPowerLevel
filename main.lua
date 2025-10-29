@@ -208,8 +208,8 @@ local function GetTop10Players()
 	local numMembers = GetNumGroupMembers()
 	local isRaid = IsInRaid()
 
-	for i = 1, numMembers do
-		local unit = (isRaid and 'raid' or 'party') .. i
+	-- Helper function to process a unit and add to players table
+	local function ProcessUnit(unit)
 		if UnitExists(unit) then
 			local name, realm = UnitName(unit)
 			-- If realm is nil, player is on same realm as us
@@ -251,6 +251,15 @@ local function GetTop10Players()
 				table.insert(players, {name = fullName, power = powerLevel, versatility = versatility, colorHex = colorHex})
 			end
 		end
+	end
+
+	-- Always include the player
+	ProcessUnit('player')
+
+	-- Process group members
+	for i = 1, numMembers do
+		local unit = (isRaid and 'raid' or 'party') .. i
+		ProcessUnit(unit)
 	end
 
 	-- Sort by selected criteria (power or versatility)
