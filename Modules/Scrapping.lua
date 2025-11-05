@@ -78,6 +78,7 @@ local DbDefaults = {
 	minLevelDiff = 0,
 	affixBlacklist = {},
 	statMode = 'any', -- 'any' (OR) or 'all' (AND)
+	maxIlvlDiffForBlacklist = 50, -- Max ilvl difference for blacklist to apply (0 = disabled)
 	scrappingListManualHide = false,
 	notInGearset = true,
 	notWeapons = (PlayerGetTimerunningSeasonID and PlayerGetTimerunningSeasonID() == 2) or false,
@@ -616,13 +617,27 @@ end
 ---@param bagID number
 ---@param slotID number
 ---@param itemLink string
+---@param itemLevel number|nil Item level of the item being checked
+---@param equippedItemLevel number|nil Item level of equipped item in this slot
 ---@return boolean
-function module:HasBlacklistedAffix(bagID, slotID, itemLink)
+function module:HasBlacklistedAffix(bagID, slotID, itemLink, itemLevel, equippedItemLevel)
 	if not self.DB.affixBlacklist then
 		if LibRTC and LibRTC.logger then
 			LibRTC.logger.debug('HasBlacklistedAffix: No blacklist configured')
 		end
 		return false
+	end
+
+	-- Check if item is too far below equipped ilvl to be protected by blacklist
+	if itemLevel and equippedItemLevel and self.DB.maxIlvlDiffForBlacklist and self.DB.maxIlvlDiffForBlacklist > 0 then
+		local ilvlDiff = equippedItemLevel - itemLevel
+		if ilvlDiff > self.DB.maxIlvlDiffForBlacklist then
+			-- Item is too far below equipped - don't protect it even if it has blacklisted affixes/stats
+			if detailedLogs and LibRTC and LibRTC.logger then
+				LibRTC.logger.debug(string.format('Item NOT excluded: %s - Too far below equipped ilvl (diff: %d > max: %d)', itemLink, ilvlDiff, self.DB.maxIlvlDiffForBlacklist))
+			end
+			return false
+		end
 	end
 
 	local affixes = self:ScanItemAffixes(bagID, slotID, itemLink)
@@ -730,18 +745,18 @@ function module:GetFilteredScrappableItems(capReturn)
 			shouldInclude = false
 		end
 
-		-- Check for blacklisted affixes
-		if shouldInclude and self:HasBlacklistedAffix(item.bagID, item.slotID, item.link) then
-			shouldInclude = false
-		end
-
-		-- Get equipped item level for this slot
+		-- Get equipped item level for this slot (needed for blacklist check)
 		local equippedItemLevel = nil
 		if shouldInclude then
 			equippedItemLevel = self:GetMinLevelForInvType(item.invType)
 			if not equippedItemLevel then
 				shouldInclude = false
 			end
+		end
+
+		-- Check for blacklisted affixes (with ilvl check)
+		if shouldInclude and self:HasBlacklistedAffix(item.bagID, item.slotID, item.link, item.level, equippedItemLevel) then
+			shouldInclude = false
 		end
 
 		-- Determine which filtering rules to apply
@@ -823,6 +838,14 @@ function module:GetFilteredScrappableItems(capReturn)
 			end
 		end
 	end
+
+	-- Sort items by item level (lowest to highest) so lower ilvl items are scrapped first
+	table.sort(
+		filteredItems,
+		function(a, b)
+			return a.level < b.level
+		end
+	)
 
 	return filteredItems
 end
@@ -1946,9 +1969,55 @@ function module:ShowAffixBlacklistWindow()
 			end
 		)
 
+		-- Max ilvl difference for blacklist
+		local maxIlvlLabel = window:CreateFontString(nil, 'ARTWORK', 'GameFontNormalSmall')
+		maxIlvlLabel:SetPoint('TOPLEFT', customLabel, 'BOTTOMLEFT', 0, -35)
+		maxIlvlLabel:SetText('Max iLvl Diff for Blacklist:')
+
+		local maxIlvlBox = CreateFrame('EditBox', nil, window, 'InputBoxTemplate')
+		maxIlvlBox:SetPoint('LEFT', maxIlvlLabel, 'RIGHT', 10, 0)
+		maxIlvlBox:SetSize(50, 20)
+		maxIlvlBox:SetAutoFocus(false)
+		maxIlvlBox:SetMaxLetters(3)
+		maxIlvlBox:SetNumeric(true)
+		maxIlvlBox:SetText(tostring(module.DB.maxIlvlDiffForBlacklist or 50))
+		maxIlvlBox:SetScript(
+			'OnTextChanged',
+			function(editBox, userInput)
+				if userInput then
+					local num = tonumber(editBox:GetText())
+					if num then
+						module.DB.maxIlvlDiffForBlacklist = num
+						self:UpdateAll()
+					end
+				end
+			end
+		)
+
+		-- Tooltip for max ilvl difference
+		maxIlvlBox:SetScript(
+			'OnEnter',
+			function()
+				GameTooltip:SetOwner(maxIlvlBox, 'ANCHOR_RIGHT')
+				GameTooltip:SetText('Max Item Level Difference', 1, 1, 1, 1, true)
+				GameTooltip:AddLine('Items more than this many levels below your equipped gear will be scrapped even if they have blacklisted stats/affixes.', nil, nil, nil, true)
+				GameTooltip:AddLine(' ', nil, nil, nil, true)
+				GameTooltip:AddLine('Example: Set to 50 at ilvl 740 = Only protect items 690+', nil, nil, nil, true)
+				GameTooltip:AddLine('Set to 0 to disable (always protect blacklisted items)', nil, nil, nil, true)
+				GameTooltip:Show()
+			end
+		)
+
+		maxIlvlBox:SetScript(
+			'OnLeave',
+			function()
+				GameTooltip:Hide()
+			end
+		)
+
 		-- Scroll frame for blacklist display with modern scrollbar and background
 		local scrollFrame = CreateFrame('ScrollFrame', nil, window)
-		scrollFrame:SetPoint('TOPLEFT', addBox, 'BOTTOMLEFT', -5, -10)
+		scrollFrame:SetPoint('TOPLEFT', maxIlvlLabel, 'BOTTOMLEFT', -5, -10)
 		scrollFrame:SetPoint('BOTTOMRIGHT', window, 'BOTTOMRIGHT', -25, 10)
 
 		-- Add background texture
