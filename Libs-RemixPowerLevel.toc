@@ -8,7 +8,7 @@
 ## SavedVariables: LibsRemixDB
 ## X-Curse-Project-ID: 1023198
 ## X-Wago-ID: vNAe8BNo
-## X-Github: https://github.com/Wutname1/Libs-RemixPowerLevel
+## X-Github: https://github.com/spartanui-wow/Libs-RemixPowerLevel
 ## Category: Expansion Features
 ## Category-deDE: Erweiterungsfeatures
 ## Category-esES: Características

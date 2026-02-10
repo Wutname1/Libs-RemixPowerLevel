@@ -46,4 +46,4 @@ The auto scrapper helps manage large amounts of gear during Legion Remix by auto
 ## Support
 
 - **Discord**: [![Discord](https://img.shields.io/discord/265564257347829771.svg?logo=discord&style=for-the-badge)](https://discord.gg/Qc9TRBv)
-- **Issues**: [![Issues](https://img.shields.io/github/issues/wutname1/Libs-RemixThreadCount?style=for-the-badge)](https://github.com/Wutname1/Libs-RemixThreadCount/issues)
+- **Issues**: [![Issues](https://img.shields.io/github/issues/spartanui-wow/Libs-RemixThreadCount?style=for-the-badge)](https://github.com/spartanui-wow/Libs-RemixThreadCount/issues)

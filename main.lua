@@ -20,7 +20,7 @@ end
 ---@return string
 local function comma_value(value)
 	local left, num, right = string.match(value, '^([^%d]*%d)(%d*)(.-)$')
-	return left .. (num:reverse():gsub('(%d%d%d)', '%1' .. (LARGE_NUMBER_SEPERATOR)):reverse()) .. right
+	return left .. (num:reverse():gsub('(%d%d%d)', '%1' .. LARGE_NUMBER_SEPERATOR):reverse()) .. right
 end
 
 ---@return boolean
@@ -157,7 +157,7 @@ local function UpdateItemSlotButton(button, unit)
 				end
 
 				if string.match(item:GetItemName() or '', 'Cloak of Infinite Potential') then
-					local c, ThreadCount = {0, 1, 2, 3, 4, 5, 6, 7, 148}, 0
+					local c, ThreadCount = { 0, 1, 2, 3, 4, 5, 6, 7, 148 }, 0
 					for i = 1, 9 do
 						ThreadCount = ThreadCount + C_CurrencyInfo.GetCurrencyInfo(2853 + c[i]).quantity
 					end
@@ -248,7 +248,7 @@ local function GetTop10Players()
 			end
 
 			if powerLevel > 0 then
-				table.insert(players, {name = fullName, power = powerLevel, versatility = versatility, colorHex = colorHex})
+				table.insert(players, { name = fullName, power = powerLevel, versatility = versatility, colorHex = colorHex })
 			end
 		end
 	end
@@ -264,16 +264,13 @@ local function GetTop10Players()
 
 	-- Sort by selected criteria (power or versatility)
 	local sortBy = LibRTC.dbobj and LibRTC.dbobj.profile.sortBy or 'power'
-	table.sort(
-		players,
-		function(a, b)
-			if sortBy == 'versatility' and IsLegionRemix() then
-				return a.versatility > b.versatility
-			else
-				return a.power > b.power
-			end
+	table.sort(players, function(a, b)
+		if sortBy == 'versatility' and IsLegionRemix() then
+			return a.versatility > b.versatility
+		else
+			return a.power > b.power
 		end
-	)
+	end)
 
 	-- Return top 10
 	local top10 = {}
@@ -300,26 +297,26 @@ local function GetOptions()
 				type = 'description',
 				name = 'Display power level information for Timerunner characters (MOP Remix Threads / Legion Remix Infinite Power).',
 				order = 1,
-				fontSize = 'medium'
+				fontSize = 'medium',
 			},
 			showInCharacterScreen = {
 				type = 'toggle',
 				name = 'Show in Character Screen',
 				desc = 'Display thread count next to the Cloak of Infinite Potential (MOP) or Infinite Power above main weapon (Legion)',
 				order = 10,
-				width = 'full'
+				width = 'full',
 			},
 			showInTooltip = {
 				type = 'toggle',
 				name = 'Show in Tooltip',
 				desc = 'Display power level information in unit tooltips',
 				order = 11,
-				width = 'full'
+				width = 'full',
 			},
 			minimapHeader = {
 				type = 'header',
 				name = 'Minimap Button',
-				order = 20
+				order = 20,
 			},
 			minimapButton = {
 				type = 'toggle',
@@ -337,7 +334,7 @@ local function GetOptions()
 					else
 						LDBIcon:Hide('Libs-RemixPowerLevel')
 					end
-				end
+				end,
 			},
 			sortBy = {
 				type = 'select',
@@ -347,13 +344,13 @@ local function GetOptions()
 				width = 'full',
 				values = {
 					power = 'Total Infinite Power',
-					versatility = 'Est. Limits Unbound'
+					versatility = 'Est. Limits Unbound',
 				},
 				hidden = function()
 					return not IsLegionRemix()
-				end
-			}
-		}
+				end,
+			},
+		},
 	}
 end
 
@@ -364,114 +361,110 @@ function LibRTC:OnInitialize()
 		showInTooltip = true,
 		sortBy = 'power', -- 'power' or 'versatility'
 		minimap = {
-			hide = false
-		}
+			hide = false,
+		},
 	}
 	-- Setup database
-	self.dbobj = LibStub('AceDB-3.0'):New('LibsRemixDB', {profile = databaseDefaults})
+	self.dbobj = LibStub('AceDB-3.0'):New('LibsRemixDB', { profile = databaseDefaults })
 	self.db = self.dbobj.profile ---@type LibRTC.DB
 
 	-- Create options table for modules to extend
 	self.OptTable = GetOptions()
 
 	-- Register options with AceConfig
-	LibStub('AceConfig-3.0'):RegisterOptionsTable(
-		'Libs-RemixPowerLevel',
-		function()
-			return self.OptTable
-		end
-	)
+	LibStub('AceConfig-3.0'):RegisterOptionsTable('Libs-RemixPowerLevel', function()
+		return self.OptTable
+	end)
 	LibStub('AceConfigDialog-3.0'):AddToBlizOptions('Libs-RemixPowerLevel', "Lib's - Remix Power Level")
 
 	-- Create LibDataBroker object
-	local ldbObject =
-		LDB:NewDataObject(
-		'Libs-RemixPowerLevel',
-		{
-			type = 'data source',
-			text = 'Remix Power Level',
-			icon = 'Interface/Addons/Libs-RemixPowerLevel/Logo-Icon',
-			OnClick = function(clickedframe, button)
-				if button == 'LeftButton' then
-					-- Open Blizzard options to this addon
-					Settings.OpenToCategory("Lib's - Remix Power Level")
-				elseif button == 'RightButton' and IsShiftKeyDown() then
-					-- Hide minimap button
-					LibRTC.dbobj.profile.minimap.hide = true
-					LDBIcon:Hide('Libs-RemixPowerLevel')
-					print('Libs-RemixPowerLevel: Minimap button hidden. Re-enable in addon options.')
-				end
-			end,
-			OnTooltipShow = function(tooltip)
-				if not IsTimerunnerMode() then
-					tooltip:AddLine('|cffFFFFFFLibs - Remix Power Level|r')
-					tooltip:AddLine('|cffFF0000Not in Timerunner mode|r')
-					return
-				end
-
+	local ldbObject = LDB:NewDataObject('Libs-RemixPowerLevel', {
+		type = 'data source',
+		text = 'Remix Power Level',
+		icon = 'Interface/Addons/Libs-RemixPowerLevel/Logo-Icon',
+		OnClick = function(clickedframe, button)
+			if button == 'LeftButton' then
+				-- Open Blizzard options to this addon
+				Settings.OpenToCategory("Lib's - Remix Power Level")
+			elseif button == 'RightButton' and IsShiftKeyDown() then
+				-- Hide minimap button
+				LibRTC.dbobj.profile.minimap.hide = true
+				LDBIcon:Hide('Libs-RemixPowerLevel')
+				print('Libs-RemixPowerLevel: Minimap button hidden. Re-enable in addon options.')
+			end
+		end,
+		OnTooltipShow = function(tooltip)
+			if not IsTimerunnerMode() then
 				tooltip:AddLine('|cffFFFFFFLibs - Remix Power Level|r')
-				tooltip:AddLine(' ')
+				tooltip:AddLine('|cffFF0000Not in Timerunner mode|r')
+				return
+			end
 
-				-- Show player's own stats
-				if IsLegionRemix() then
-					local powerData = C_UnitAuras.GetAuraDataBySpellName('player', 'Infinite Power')
-					if powerData ~= nil then
-						local total = 0
-						for i = 1, #powerData.points do
-							total = total + powerData.points[i]
-						end
-						-- Versatility is at index 5 in the points array
-						local versatility = powerData.points[5] or 0
-						local limitsUnbound = versatility
+			tooltip:AddLine('|cffFFFFFFLibs - Remix Power Level|r')
+			tooltip:AddLine(' ')
 
-						tooltip:AddLine('|cff00FF00Infinite Power |cffFFFFFF' .. comma_value(tostring(total)))
-						tooltip:AddLine('|cffFFD700Est. Limits Unbound |cffFFFFFF' .. comma_value(tostring(limitsUnbound)))
-						tooltip:AddLine(' ')
+			-- Show player's own stats
+			if IsLegionRemix() then
+				local powerData = C_UnitAuras.GetAuraDataBySpellName('player', 'Infinite Power')
+				if powerData ~= nil then
+					local total = 0
+					for i = 1, #powerData.points do
+						total = total + powerData.points[i]
 					end
-				elseif IsMOPRemix() then
-					local cloakData = C_UnitAuras.GetAuraDataBySpellName('player', "Timerunner's Advantage")
-					if cloakData ~= nil then
-						local total = 0
-						for i = 1, 9 do
-							total = total + cloakData.points[i]
-						end
-						tooltip:AddLine('|cff00FF98Threads |cffFFFFFF' .. comma_value(tostring(total)))
-						tooltip:AddLine(' ')
-					end
-				end
+					-- Versatility is at index 5 in the points array
+					local versatility = powerData.points[5] or 0
+					local limitsUnbound = versatility
 
-				if not IsInGroup() then
-					tooltip:AddLine('|cffFFAA00Not in a group|r')
+					tooltip:AddLine('|cff00FF00Infinite Power |cffFFFFFF' .. comma_value(tostring(total)))
+					tooltip:AddLine('|cffFFD700Est. Limits Unbound |cffFFFFFF' .. comma_value(tostring(limitsUnbound)))
 					tooltip:AddLine(' ')
-					tooltip:AddLine('|cff00FF00Left Click:|r Open Options')
-					tooltip:AddLine('|cff00FF00Shift+Right Click:|r Hide Minimap Button')
-					return
 				end
-
-				local top10 = GetTop10Players()
-
-				if #top10 == 0 then
-					tooltip:AddLine('|cffFFAA00No power levels detected|r')
-				else
-					if IsLegionRemix() then
-						tooltip:AddDoubleLine('|cff00FF98Top 10 Players:|r', '|cffFFD700Est. Limits Unbound|r')
-						for _, player in ipairs(top10) do
-							tooltip:AddDoubleLine(string.format('%s |c%s%s|r', comma_value(tostring(player.power)), player.colorHex, player.name), '|cffFFD700' .. comma_value(tostring(player.versatility)))
-						end
-					else
-						tooltip:AddLine('|cff00FF98Top 10 Players:|r')
-						for _, player in ipairs(top10) do
-							tooltip:AddLine(string.format('%s |c%s%s|r', comma_value(tostring(player.power)), player.colorHex, player.name))
-						end
+			elseif IsMOPRemix() then
+				local cloakData = C_UnitAuras.GetAuraDataBySpellName('player', "Timerunner's Advantage")
+				if cloakData ~= nil then
+					local total = 0
+					for i = 1, 9 do
+						total = total + cloakData.points[i]
 					end
+					tooltip:AddLine('|cff00FF98Threads |cffFFFFFF' .. comma_value(tostring(total)))
+					tooltip:AddLine(' ')
 				end
+			end
 
+			if not IsInGroup() then
+				tooltip:AddLine('|cffFFAA00Not in a group|r')
 				tooltip:AddLine(' ')
 				tooltip:AddLine('|cff00FF00Left Click:|r Open Options')
 				tooltip:AddLine('|cff00FF00Shift+Right Click:|r Hide Minimap Button')
+				return
 			end
-		}
-	)
+
+			local top10 = GetTop10Players()
+
+			if #top10 == 0 then
+				tooltip:AddLine('|cffFFAA00No power levels detected|r')
+			else
+				if IsLegionRemix() then
+					tooltip:AddDoubleLine('|cff00FF98Top 10 Players:|r', '|cffFFD700Est. Limits Unbound|r')
+					for _, player in ipairs(top10) do
+						tooltip:AddDoubleLine(
+							string.format('%s |c%s%s|r', comma_value(tostring(player.power)), player.colorHex, player.name),
+							'|cffFFD700' .. comma_value(tostring(player.versatility))
+						)
+					end
+				else
+					tooltip:AddLine('|cff00FF98Top 10 Players:|r')
+					for _, player in ipairs(top10) do
+						tooltip:AddLine(string.format('%s |c%s%s|r', comma_value(tostring(player.power)), player.colorHex, player.name))
+					end
+				end
+			end
+
+			tooltip:AddLine(' ')
+			tooltip:AddLine('|cff00FF00Left Click:|r Open Options')
+			tooltip:AddLine('|cff00FF00Shift+Right Click:|r Hide Minimap Button')
+		end,
+	})
 
 	-- Register minimap icon
 	LDBIcon:Register('Libs-RemixPowerLevel', ldbObject, self.db.minimap)
@@ -490,11 +483,8 @@ function LibRTC:OnEnable()
 		TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, TooltipProcessor)
 
 		-- Add item slot button update
-		hooksecurefunc(
-			'PaperDollItemSlotButton_Update',
-			function(button)
-				UpdateItemSlotButton(button, 'player')
-			end
-		)
+		hooksecurefunc('PaperDollItemSlotButton_Update', function(button)
+			UpdateItemSlotButton(button, 'player')
+		end)
 	end
 end

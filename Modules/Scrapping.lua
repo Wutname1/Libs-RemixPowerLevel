@@ -24,7 +24,7 @@ local KNOWN_AFFIXES = {
 	['Temporal Retaliation'] = 1232262,
 	['Terror From Below'] = 1233595,
 	['Touch of Malice'] = 1242992,
-	['Volatile Magics'] = 1234774
+	['Volatile Magics'] = 1234774,
 }
 
 -- Common stats to blacklist (separate dropdown)
@@ -35,7 +35,7 @@ local KNOWN_STATS = {
 	'Leech',
 	'Mastery',
 	'Speed',
-	'Versatility'
+	'Versatility',
 }
 
 -- Map inventory types to equipment slots
@@ -50,15 +50,15 @@ local ITEM_TO_INV_SLOT = {
 	[Enum.InventoryType.IndexFeetType] = 8,
 	[Enum.InventoryType.IndexWristType] = 9,
 	[Enum.InventoryType.IndexHandType] = 10,
-	[Enum.InventoryType.IndexFingerType] = {11, 12},
-	[Enum.InventoryType.IndexTrinketType] = {13, 14},
+	[Enum.InventoryType.IndexFingerType] = { 11, 12 },
+	[Enum.InventoryType.IndexTrinketType] = { 13, 14 },
 	[Enum.InventoryType.IndexCloakType] = 15,
 	[Enum.InventoryType.IndexRobeType] = 5,
 	[Enum.InventoryType.IndexWeaponType] = 16,
 	[Enum.InventoryType.IndexShieldType] = 17,
 	[Enum.InventoryType.Index2HweaponType] = 16,
 	[Enum.InventoryType.IndexWeaponmainhandType] = 16,
-	[Enum.InventoryType.IndexWeaponoffhandType] = 17
+	[Enum.InventoryType.IndexWeaponoffhandType] = 17,
 }
 
 ---@class ScrappableItem
@@ -78,7 +78,7 @@ local DbDefaults = {
 	minLevelDiff = 0,
 	affixBlacklist = {},
 	statMode = 'any', -- 'any' (OR) or 'all' (AND)
-	maxIlvlDiffForBlacklist = 50, -- Max ilvl difference for blacklist to apply (0 = disabled)
+	maxIlvlDiffForBlacklist = 1, -- Max ilvl difference for blacklist to apply (0 = disabled)
 	scrappingListManualHide = false,
 	notInGearset = true,
 	notWeapons = (PlayerGetTimerunningSeasonID and PlayerGetTimerunningSeasonID() == 2) or false,
@@ -86,14 +86,14 @@ local DbDefaults = {
 	advancedFilters = {
 		armor = {
 			maxQuality = Enum.ItemQuality.Epic,
-			minLevelDiff = 0
+			minLevelDiff = 0,
 		},
 		accessories = {
 			maxQuality = Enum.ItemQuality.Rare,
 			minLevelDiff = 0,
-			keepHighestDuplicates = true
-		}
-	}
+			keepHighestDuplicates = true,
+		},
+	},
 }
 
 -- Tooltip scanner for detecting affixes
@@ -105,7 +105,7 @@ local tooltipAffixCache = {} -- Cache keyed by itemLink
 local gearsetCache = {} -- Cache keyed by "bag-slot"
 
 function module:OnInitialize()
-	module.Database = LibRTC.dbobj:RegisterNamespace('Scrapping', {profile = DbDefaults})
+	module.Database = LibRTC.dbobj:RegisterNamespace('Scrapping', { profile = DbDefaults })
 	module.DB = module.Database.profile ---@type LibRTC.Module.Scrapping.DB
 
 	-- Add module options to parent addon options table
@@ -141,7 +141,7 @@ function module:InitializeOptions()
 				type = 'description',
 				name = 'Automatically scrap items at the scrapping machine based on filters.',
 				order = 1,
-				fontSize = 'medium'
+				fontSize = 'medium',
 			},
 			enabled = {
 				type = 'toggle',
@@ -159,7 +159,7 @@ function module:InitializeOptions()
 					else
 						LibRTC:DisableModule('Scrapping')
 					end
-				end
+				end,
 			},
 			autoScrap = {
 				type = 'toggle',
@@ -175,7 +175,7 @@ function module:InitializeOptions()
 				end,
 				set = function(_, value)
 					self.DB.autoScrap = value
-				end
+				end,
 			},
 			maxQuality = {
 				type = 'select',
@@ -190,14 +190,14 @@ function module:InitializeOptions()
 					[Enum.ItemQuality.Common] = '|cffFFFFFFCommon|r',
 					[Enum.ItemQuality.Uncommon] = '|cff1EFF00Uncommon|r',
 					[Enum.ItemQuality.Rare] = '|cff0070DDRare|r',
-					[Enum.ItemQuality.Epic] = '|cffA335EEEpic|r'
+					[Enum.ItemQuality.Epic] = '|cffA335EEEpic|r',
 				},
 				get = function()
 					return self.DB.maxQuality
 				end,
 				set = function(_, value)
 					self.DB.maxQuality = value
-				end
+				end,
 			},
 			minLevelDiff = {
 				type = 'range',
@@ -216,23 +216,23 @@ function module:InitializeOptions()
 				end,
 				set = function(_, value)
 					self.DB.minLevelDiff = value
-				end
+				end,
 			},
 			affixInfo = {
 				type = 'description',
 				name = '\nAffix blacklist management is available in the scrapping machine UI.',
-				order = 20
+				order = 20,
 			},
 			advancedHeader = {
 				type = 'header',
 				name = 'Advanced Filtering',
-				order = 30
+				order = 30,
 			},
 			advancedDescription = {
 				type = 'description',
 				name = 'Enable advanced filtering to set separate rules for armor (has stats) and accessories (has affixes).',
 				order = 31,
-				fontSize = 'medium'
+				fontSize = 'medium',
 			},
 			useAdvancedFiltering = {
 				type = 'toggle',
@@ -248,7 +248,7 @@ function module:InitializeOptions()
 				end,
 				set = function(_, value)
 					self.DB.useAdvancedFiltering = value
-				end
+				end,
 			},
 			notInGearset = {
 				type = 'toggle',
@@ -264,7 +264,7 @@ function module:InitializeOptions()
 				end,
 				set = function(_, value)
 					self.DB.notInGearset = value
-				end
+				end,
 			},
 			notWeapons = {
 				type = 'toggle',
@@ -280,7 +280,7 @@ function module:InitializeOptions()
 				end,
 				set = function(_, value)
 					self.DB.notWeapons = value
-				end
+				end,
 			},
 			armorGroup = {
 				type = 'group',
@@ -301,14 +301,14 @@ function module:InitializeOptions()
 							[Enum.ItemQuality.Common] = '|cffFFFFFFCommon|r',
 							[Enum.ItemQuality.Uncommon] = '|cff1EFF00Uncommon|r',
 							[Enum.ItemQuality.Rare] = '|cff0070DDRare|r',
-							[Enum.ItemQuality.Epic] = '|cffA335EEEpic|r'
+							[Enum.ItemQuality.Epic] = '|cffA335EEEpic|r',
 						},
 						get = function()
 							return self.DB.advancedFilters.armor.maxQuality
 						end,
 						set = function(_, value)
 							self.DB.advancedFilters.armor.maxQuality = value
-						end
+						end,
 					},
 					armorMinLevelDiff = {
 						type = 'range',
@@ -323,9 +323,9 @@ function module:InitializeOptions()
 						end,
 						set = function(_, value)
 							self.DB.advancedFilters.armor.minLevelDiff = value
-						end
-					}
-				}
+						end,
+					},
+				},
 			},
 			accessoriesGroup = {
 				type = 'group',
@@ -346,14 +346,14 @@ function module:InitializeOptions()
 							[Enum.ItemQuality.Common] = '|cffFFFFFFCommon|r',
 							[Enum.ItemQuality.Uncommon] = '|cff1EFF00Uncommon|r',
 							[Enum.ItemQuality.Rare] = '|cff0070DDRare|r',
-							[Enum.ItemQuality.Epic] = '|cffA335EEEpic|r'
+							[Enum.ItemQuality.Epic] = '|cffA335EEEpic|r',
 						},
 						get = function()
 							return self.DB.advancedFilters.accessories.maxQuality
 						end,
 						set = function(_, value)
 							self.DB.advancedFilters.accessories.maxQuality = value
-						end
+						end,
 					},
 					accessoriesMinLevelDiff = {
 						type = 'range',
@@ -368,7 +368,7 @@ function module:InitializeOptions()
 						end,
 						set = function(_, value)
 							self.DB.advancedFilters.accessories.minLevelDiff = value
-						end
+						end,
 					},
 					keepHighestDuplicates = {
 						type = 'toggle',
@@ -381,11 +381,11 @@ function module:InitializeOptions()
 						end,
 						set = function(_, value)
 							self.DB.advancedFilters.accessories.keepHighestDuplicates = value
-						end
-					}
-				}
-			}
-		}
+						end,
+					},
+				},
+			},
+		},
 	}
 end
 
@@ -466,23 +466,20 @@ function module:IsInGearset(bag, slot)
 		return gearsetCache[cacheKey]
 	end
 
-	local success, result =
-		pcall(
-		function()
-			scannerTooltip:SetOwner(UIParent, 'ANCHOR_NONE')
-			scannerTooltip:SetBagItem(bag, slot)
+	local success, result = pcall(function()
+		scannerTooltip:SetOwner(UIParent, 'ANCHOR_NONE')
+		scannerTooltip:SetBagItem(bag, slot)
 
-			for i = 1, scannerTooltip:NumLines() do
-				local line = _G['LibsRemixPowerLevelScannerTooltipTextLeft' .. i]
-				if line and line:GetText() and line:GetText():find(EQUIPMENT_SETS:format('.*')) then
-					scannerTooltip:Hide()
-					return true
-				end
+		for i = 1, scannerTooltip:NumLines() do
+			local line = _G['LibsRemixPowerLevelScannerTooltipTextLeft' .. i]
+			if line and line:GetText() and line:GetText():find(EQUIPMENT_SETS:format('.*')) then
+				scannerTooltip:Hide()
+				return true
 			end
-			scannerTooltip:Hide()
-			return false
 		end
-	)
+		scannerTooltip:Hide()
+		return false
+	end)
 
 	if not success then
 		gearsetCache[cacheKey] = false
@@ -498,12 +495,14 @@ end
 ---@param invType Enum.InventoryType
 ---@return boolean
 function module:IsWeapon(invType)
-	return invType == Enum.InventoryType.IndexWeaponType or invType == Enum.InventoryType.IndexShieldType or invType == Enum.InventoryType.Index2HweaponType or
-		invType == Enum.InventoryType.IndexWeaponmainhandType or
-		invType == Enum.InventoryType.IndexWeaponoffhandType or
-		invType == Enum.InventoryType.IndexRangedType or
-		invType == Enum.InventoryType.IndexRangedrightType or
-		invType == Enum.InventoryType.IndexHoldableType
+	return invType == Enum.InventoryType.IndexWeaponType
+		or invType == Enum.InventoryType.IndexShieldType
+		or invType == Enum.InventoryType.Index2HweaponType
+		or invType == Enum.InventoryType.IndexWeaponmainhandType
+		or invType == Enum.InventoryType.IndexWeaponoffhandType
+		or invType == Enum.InventoryType.IndexRangedType
+		or invType == Enum.InventoryType.IndexRangedrightType
+		or invType == Enum.InventoryType.IndexHoldableType
 end
 
 ---Get item category for filtering
@@ -532,18 +531,15 @@ function module:GetScrappableItems()
 		for slotID = 1, C_Container.GetContainerNumSlots(bagID) do
 			local itemLoc = ItemLocation:CreateFromBagAndSlot(bagID, slotID)
 			if itemLoc:IsValid() and C_Item.CanScrapItem(itemLoc) then
-				table.insert(
-					scrappableItems,
-					{
-						bagID = bagID,
-						slotID = slotID,
-						level = C_Item.GetCurrentItemLevel(itemLoc),
-						invType = C_Item.GetItemInventoryType(itemLoc),
-						quality = C_Item.GetItemQuality(itemLoc),
-						link = C_Item.GetItemLink(itemLoc),
-						location = itemLoc
-					}
-				)
+				table.insert(scrappableItems, {
+					bagID = bagID,
+					slotID = slotID,
+					level = C_Item.GetCurrentItemLevel(itemLoc),
+					invType = C_Item.GetItemInventoryType(itemLoc),
+					quality = C_Item.GetItemQuality(itemLoc),
+					link = C_Item.GetItemLink(itemLoc),
+					location = itemLoc,
+				})
 			end
 		end
 	end
@@ -818,12 +814,9 @@ function module:GetFilteredScrappableItems(capReturn)
 		for itemName, duplicates in pairs(accessoryDuplicates) do
 			if #duplicates > 1 then
 				-- Sort by item level (descending)
-				table.sort(
-					duplicates,
-					function(a, b)
-						return a.level > b.level
-					end
-				)
+				table.sort(duplicates, function(a, b)
+					return a.level > b.level
+				end)
 
 				-- Keep the highest, remove the rest from filteredItems
 				for i = 2, #duplicates do
@@ -840,12 +833,9 @@ function module:GetFilteredScrappableItems(capReturn)
 	end
 
 	-- Sort items by item level (lowest to highest) so lower ilvl items are scrapped first
-	table.sort(
-		filteredItems,
-		function(a, b)
-			return a.level < b.level
-		end
-	)
+	table.sort(filteredItems, function(a, b)
+		return a.level < b.level
+	end)
 
 	return filteredItems
 end
@@ -856,7 +846,7 @@ end
 ---@return boolean success
 function module:ScrapItemFromBag(bagID, slotID)
 	C_Container.PickupContainerItem(bagID, slotID)
-	local slots = {ScrappingMachineFrame.ItemSlots:GetChildren()}
+	local slots = { ScrappingMachineFrame.ItemSlots:GetChildren() }
 	for i = 1, SCRAPPING_MACHINE_MAX_SLOTS do
 		if not C_ScrappingMachineUI.GetCurrentPendingScrapItemLocationByIndex(i - 1) then
 			slots[i]:Click()
@@ -941,14 +931,10 @@ function module:AutoScrap()
 	end
 
 	-- Schedule auto-scrap with a delay to allow bag updates from server
-	self.autoScrapTimer =
-		self:ScheduleTimer(
-		function()
-			self:AutoScrapBatch()
-			self.autoScrapTimer = nil
-		end,
-		0.5
-	)
+	self.autoScrapTimer = self:ScheduleTimer(function()
+		self:AutoScrapBatch()
+		self.autoScrapTimer = nil
+	end, 0.5)
 end
 
 ---Initialize scrapping system
@@ -957,15 +943,12 @@ function module:Init()
 	if not C_AddOns.IsAddOnLoaded('Blizzard_ScrappingMachineUI') then
 		local frame = CreateFrame('Frame')
 		frame:RegisterEvent('ADDON_LOADED')
-		frame:SetScript(
-			'OnEvent',
-			function(_, event, addonName)
-				if addonName == 'Blizzard_ScrappingMachineUI' then
-					frame:UnregisterEvent('ADDON_LOADED')
-					module:InitUI()
-				end
+		frame:SetScript('OnEvent', function(_, event, addonName)
+			if addonName == 'Blizzard_ScrappingMachineUI' then
+				frame:UnregisterEvent('ADDON_LOADED')
+				module:InitUI()
 			end
-		)
+		end)
 	else
 		self:InitUI()
 	end
@@ -987,12 +970,9 @@ function module:InitUI()
 	local resetTexture = resetButton:CreateTexture(nil, 'BACKGROUND')
 	resetTexture:SetAllPoints()
 	resetTexture:SetAtlas('GM-raidMarker-reset')
-	resetButton:SetScript(
-		'OnClick',
-		function()
-			C_ScrappingMachineUI.RemoveAllScrapItems()
-		end
-	)
+	resetButton:SetScript('OnClick', function()
+		C_ScrappingMachineUI.RemoveAllScrapItems()
+	end)
 
 	-- Side panel frame
 	local frame = CreateFrame('Frame', 'LibsRemixPowerLevelScrappingUI', ScrappingMachineFrame, 'PortraitFrameTemplate')
@@ -1018,7 +998,7 @@ function module:InitUI()
 		[Enum.ItemQuality.Common] = '|cffFFFFFFCommon|r',
 		[Enum.ItemQuality.Uncommon] = '|cff1EFF00Uncommon|r',
 		[Enum.ItemQuality.Rare] = '|cff0070DDRare|r',
-		[Enum.ItemQuality.Epic] = '|cffA335EEEpic|r'
+		[Enum.ItemQuality.Epic] = '|cffA335EEEpic|r',
 	}
 
 	local qualityDropdown = CreateFrame('DropdownButton', nil, frame, 'WowStyle1FilterDropdownTemplate')
@@ -1027,31 +1007,25 @@ function module:InitUI()
 	qualityDropdown:SetText(qualityTexts[module.DB.maxQuality] or '|cff0070DDRare|r')
 
 	-- Setup quality dropdown generator
-	qualityDropdown:SetupMenu(
-		function(_, rootDescription)
-			local qualities = {
-				{text = '|cffFFFFFFCommon|r', value = Enum.ItemQuality.Common},
-				{text = '|cff1EFF00Uncommon|r', value = Enum.ItemQuality.Uncommon},
-				{text = '|cff0070DDRare|r', value = Enum.ItemQuality.Rare},
-				{text = '|cffA335EEEpic|r', value = Enum.ItemQuality.Epic}
-			}
-			for _, quality in ipairs(qualities) do
-				local button =
-					rootDescription:CreateButton(
-					quality.text,
-					function()
-						module.DB.maxQuality = quality.value
-						qualityDropdown:SetText(quality.text)
-						module:UpdateAll()
-					end
-				)
-				-- Mark current selection with checkmark
-				if module.DB.maxQuality == quality.value then
-					button:SetRadio(true)
-				end
+	qualityDropdown:SetupMenu(function(_, rootDescription)
+		local qualities = {
+			{ text = '|cffFFFFFFCommon|r', value = Enum.ItemQuality.Common },
+			{ text = '|cff1EFF00Uncommon|r', value = Enum.ItemQuality.Uncommon },
+			{ text = '|cff0070DDRare|r', value = Enum.ItemQuality.Rare },
+			{ text = '|cffA335EEEpic|r', value = Enum.ItemQuality.Epic },
+		}
+		for _, quality in ipairs(qualities) do
+			local button = rootDescription:CreateButton(quality.text, function()
+				module.DB.maxQuality = quality.value
+				qualityDropdown:SetText(quality.text)
+				module:UpdateAll()
+			end)
+			-- Mark current selection with checkmark
+			if module.DB.maxQuality == quality.value then
+				button:SetRadio(true)
 			end
 		end
-	)
+	end)
 
 	-- Min level label
 	local minLevelLabel = frame:CreateFontString(nil, 'ARTWORK', 'GameFontNormalSmall')
@@ -1066,18 +1040,15 @@ function module:InitUI()
 	minLevelBox:SetMaxLetters(3)
 	minLevelBox:SetNumeric(true)
 	minLevelBox:SetText(tostring(module.DB.minLevelDiff))
-	minLevelBox:SetScript(
-		'OnTextChanged',
-		function(editBox, userInput)
-			if userInput then
-				local num = tonumber(editBox:GetText())
-				if num then
-					module.DB.minLevelDiff = num
-					module:UpdateAll()
-				end
+	minLevelBox:SetScript('OnTextChanged', function(editBox, userInput)
+		if userInput then
+			local num = tonumber(editBox:GetText())
+			if num then
+				module.DB.minLevelDiff = num
+				module:UpdateAll()
 			end
 		end
-	)
+	end)
 
 	-- Affix blacklist button using error UI's black style
 	local affixButton = CreateFrame('Button', nil, frame)
@@ -1098,26 +1069,17 @@ function module:InitUI()
 	affixButton.Text:SetText('Affix & Stat Blacklist')
 	affixButton.Text:SetTextColor(1, 1, 1, 1)
 
-	affixButton:HookScript(
-		'OnDisable',
-		function(btn)
-			btn.Text:SetTextColor(0.6, 0.6, 0.6, 0.6)
-		end
-	)
+	affixButton:HookScript('OnDisable', function(btn)
+		btn.Text:SetTextColor(0.6, 0.6, 0.6, 0.6)
+	end)
 
-	affixButton:HookScript(
-		'OnEnable',
-		function(btn)
-			btn.Text:SetTextColor(1, 1, 1, 1)
-		end
-	)
+	affixButton:HookScript('OnEnable', function(btn)
+		btn.Text:SetTextColor(1, 1, 1, 1)
+	end)
 
-	affixButton:SetScript(
-		'OnClick',
-		function()
-			self:ShowAffixBlacklistWindow()
-		end
-	)
+	affixButton:SetScript('OnClick', function()
+		self:ShowAffixBlacklistWindow()
+	end)
 
 	-- Advanced Settings button
 	local advancedButton = CreateFrame('Button', nil, frame)
@@ -1138,41 +1100,29 @@ function module:InitUI()
 	advancedButton.Text:SetText('Advanced Settings')
 	advancedButton.Text:SetTextColor(1, 1, 1, 1)
 
-	advancedButton:HookScript(
-		'OnDisable',
-		function(btn)
-			btn.Text:SetTextColor(0.6, 0.6, 0.6, 0.6)
-		end
-	)
+	advancedButton:HookScript('OnDisable', function(btn)
+		btn.Text:SetTextColor(0.6, 0.6, 0.6, 0.6)
+	end)
 
-	advancedButton:HookScript(
-		'OnEnable',
-		function(btn)
-			btn.Text:SetTextColor(1, 1, 1, 1)
-		end
-	)
+	advancedButton:HookScript('OnEnable', function(btn)
+		btn.Text:SetTextColor(1, 1, 1, 1)
+	end)
 
-	advancedButton:SetScript(
-		'OnClick',
-		function()
-			Settings.OpenToCategory("Lib's - Remix Power Level")
-		end
-	)
+	advancedButton:SetScript('OnClick', function()
+		Settings.OpenToCategory("Lib's - Remix Power Level")
+	end)
 
 	-- Auto scrap checkbox
 	local autoScrapCheck = CreateFrame('CheckButton', nil, frame, 'UICheckButtonTemplate')
 	autoScrapCheck:SetPoint('TOPLEFT', advancedButton, 'BOTTOMLEFT', 0, -2)
 	autoScrapCheck.text:SetText('Auto Scrap')
 	autoScrapCheck:SetChecked(module.DB.autoScrap)
-	autoScrapCheck:SetScript(
-		'OnClick',
-		function(checkbox)
-			module.DB.autoScrap = checkbox:GetChecked()
-			if checkbox:GetChecked() then
-				module:AutoScrapBatch()
-			end
+	autoScrapCheck:SetScript('OnClick', function(checkbox)
+		module.DB.autoScrap = checkbox:GetChecked()
+		if checkbox:GetChecked() then
+			module:AutoScrapBatch()
 		end
-	)
+	end)
 	self.autoScrapCheck = autoScrapCheck
 
 	-- Scroll frame for items with modern scrollbar and background
@@ -1199,64 +1149,49 @@ function module:InitUI()
 	self.itemButtons = {}
 
 	-- Hook events
-	ScrappingMachineFrame:HookScript(
-		'OnShow',
-		function()
-			-- Only show if module is enabled
-			if self.DB and self.DB.enabled then
-				frame:Show()
-				module:UpdateAll()
-			else
-				frame:Hide()
-			end
-		end
-	)
-
-	ScrappingMachineFrame:HookScript(
-		'OnHide',
-		function()
+	ScrappingMachineFrame:HookScript('OnShow', function()
+		-- Only show if module is enabled
+		if self.DB and self.DB.enabled then
+			frame:Show()
+			module:UpdateAll()
+		else
 			frame:Hide()
-			-- Also hide affix blacklist window when scrapping UI closes
-			if self.affixWindow then
-				self.affixWindow:Hide()
-			end
 		end
-	)
+	end)
 
-	self:RegisterEvent(
-		'BAG_UPDATE_DELAYED',
-		function()
-			if self.DB and self.DB.enabled and ScrappingMachineFrame:IsShown() then
-				-- Don't clear any caches - they remain valid!
-				-- Tooltip cache: itemLinks don't change
-				-- Gearset cache: bag-slot membership rarely changes
-				-- Only clear when filters change (UpdateAll)
-				self:RefreshItemList()
-			end
+	ScrappingMachineFrame:HookScript('OnHide', function()
+		frame:Hide()
+		-- Also hide affix blacklist window when scrapping UI closes
+		if self.affixWindow then
+			self.affixWindow:Hide()
 		end
-	)
+	end)
+
+	self:RegisterEvent('BAG_UPDATE_DELAYED', function()
+		if self.DB and self.DB.enabled and ScrappingMachineFrame:IsShown() then
+			-- Don't clear any caches - they remain valid!
+			-- Tooltip cache: itemLinks don't change
+			-- Gearset cache: bag-slot membership rarely changes
+			-- Only clear when filters change (UpdateAll)
+			self:RefreshItemList()
+		end
+	end)
 
 	-- Create scrapping list window and toggle button
 	self:InitScrappingListUI()
 
 	-- Register event for real-time updates of scrapping list
-	self:RegisterEvent(
-		'SCRAPPING_MACHINE_PENDING_ITEM_CHANGED',
-		function()
-			if self.DB and self.DB.enabled then
-				self:RefreshScrappingList()
-				self:UpdateScrappingListVisibility()
+	self:RegisterEvent('SCRAPPING_MACHINE_PENDING_ITEM_CHANGED', function()
+		if self.DB and self.DB.enabled then
+			self:RefreshScrappingList()
+			self:UpdateScrappingListVisibility()
 
-				self:ScheduleTimer(
-					function()
-						self:RefreshItemList()
-						self:AutoScrap()
-					end,
-					0.1
-				)
-			end
+			self:ScheduleTimer(function()
+				self:RefreshItemList()
+				self:AutoScrap()
+			end, 0.1)
 		end
-	)
+	end)
 end
 
 ----------------------------------------------------------------------------------------------------
@@ -1309,13 +1244,10 @@ function module:InitScrappingListUI()
 
 	-- Hide close button - we'll use the toggle button instead
 	if window.CloseButton then
-		window.CloseButton:SetScript(
-			'OnClick',
-			function()
-				self.DB.scrappingListManualHide = true
-				self:UpdateScrappingListVisibility()
-			end
-		)
+		window.CloseButton:SetScript('OnClick', function()
+			self.DB.scrappingListManualHide = true
+			self:UpdateScrappingListVisibility()
+		end)
 	end
 
 	-- Create scroll child for item list
@@ -1333,36 +1265,27 @@ function module:InitScrappingListUI()
 	self.scrappingListWindow = window
 
 	-- Toggle button click handler
-	toggleButton:SetScript(
-		'OnClick',
-		function()
-			self.DB.scrappingListManualHide = false
-			self:UpdateScrappingListVisibility()
-		end
-	)
+	toggleButton:SetScript('OnClick', function()
+		self.DB.scrappingListManualHide = false
+		self:UpdateScrappingListVisibility()
+	end)
 
 	-- Hook scrapping machine show/hide
-	ScrappingMachineFrame:HookScript(
-		'OnShow',
-		function()
-			if self.DB and self.DB.enabled then
-				self:RefreshScrappingList()
-				self:UpdateScrappingListVisibility()
-			end
+	ScrappingMachineFrame:HookScript('OnShow', function()
+		if self.DB and self.DB.enabled then
+			self:RefreshScrappingList()
+			self:UpdateScrappingListVisibility()
 		end
-	)
+	end)
 
-	ScrappingMachineFrame:HookScript(
-		'OnHide',
-		function()
-			if self.scrappingListWindow then
-				self.scrappingListWindow:Hide()
-			end
-			if self.scrappingListToggleButton then
-				self.scrappingListToggleButton:Hide()
-			end
+	ScrappingMachineFrame:HookScript('OnHide', function()
+		if self.scrappingListWindow then
+			self.scrappingListWindow:Hide()
 		end
-	)
+		if self.scrappingListToggleButton then
+			self.scrappingListToggleButton:Hide()
+		end
+	end)
 
 	-- Initial state
 	window:Hide()
@@ -1380,28 +1303,22 @@ function module:GetPendingScrapItems()
 	for i = 1, SCRAPPING_MACHINE_MAX_SLOTS do
 		local itemLoc = C_ScrappingMachineUI.GetCurrentPendingScrapItemLocationByIndex(i - 1)
 		if itemLoc then
-			local isValid =
-				pcall(
-				function()
-					return itemLoc:IsValid()
-				end
-			)
+			local isValid = pcall(function()
+				return itemLoc:IsValid()
+			end)
 			if isValid and itemLoc:IsValid() then
 				local link = C_Item.GetItemLink(itemLoc)
 				if link then
 					local level = C_Item.GetCurrentItemLevel(itemLoc)
 					local quality = C_Item.GetItemQuality(itemLoc)
 					local name = C_Item.GetItemName(itemLoc)
-					table.insert(
-						items,
-						{
-							itemLoc = itemLoc,
-							link = link,
-							level = level,
-							quality = quality,
-							name = name
-						}
-					)
+					table.insert(items, {
+						itemLoc = itemLoc,
+						link = link,
+						level = level,
+						quality = quality,
+						name = name,
+					})
 				end
 			end
 		end
@@ -1431,7 +1348,7 @@ function module:RefreshScrappingList()
 		[Enum.ItemQuality.Uncommon] = '|cff1eff00',
 		[Enum.ItemQuality.Rare] = '|cff0070dd',
 		[Enum.ItemQuality.Epic] = '|cffa335ee',
-		[Enum.ItemQuality.Legendary] = '|cffff8000'
+		[Enum.ItemQuality.Legendary] = '|cffff8000',
 	}
 
 	-- Create/update item rows
@@ -1462,22 +1379,16 @@ function module:RefreshScrappingList()
 
 			-- Make row clickable for tooltip
 			row:EnableMouse(true)
-			row:SetScript(
-				'OnEnter',
-				function()
-					if row.itemLink then
-						GameTooltip:SetOwner(row, 'ANCHOR_RIGHT')
-						GameTooltip:SetHyperlink(row.itemLink)
-						GameTooltip:Show()
-					end
+			row:SetScript('OnEnter', function()
+				if row.itemLink then
+					GameTooltip:SetOwner(row, 'ANCHOR_RIGHT')
+					GameTooltip:SetHyperlink(row.itemLink)
+					GameTooltip:Show()
 				end
-			)
-			row:SetScript(
-				'OnLeave',
-				function()
-					GameTooltip:Hide()
-				end
-			)
+			end)
+			row:SetScript('OnLeave', function()
+				GameTooltip:Hide()
+			end)
 
 			window.itemList[i] = row
 		end
@@ -1559,12 +1470,9 @@ function module:GetMappedPendingItems()
 	for i = 1, SCRAPPING_MACHINE_MAX_SLOTS do
 		local itemLoc = C_ScrappingMachineUI.GetCurrentPendingScrapItemLocationByIndex(i - 1)
 		if itemLoc then
-			local isValid =
-				pcall(
-				function()
-					return itemLoc:IsValid()
-				end
-			)
+			local isValid = pcall(function()
+				return itemLoc:IsValid()
+			end)
 			if isValid and itemLoc:IsValid() then
 				local bagID, slotID = itemLoc:GetBagAndSlot()
 				pendingMap[bagID .. '-' .. slotID] = true
@@ -1637,35 +1545,26 @@ function module:RefreshItemList()
 			btn.icon = btn:CreateTexture(nil, 'ARTWORK')
 			btn.icon:SetAllPoints()
 
-			btn:SetScript(
-				'OnClick',
-				function(_, button)
-					if btn.bagID and btn.slotID then
-						if button == 'LeftButton' or button == 'RightButton' then
-							self:ScrapItemFromBag(btn.bagID, btn.slotID)
-						end
+			btn:SetScript('OnClick', function(_, button)
+				if btn.bagID and btn.slotID then
+					if button == 'LeftButton' or button == 'RightButton' then
+						self:ScrapItemFromBag(btn.bagID, btn.slotID)
 					end
 				end
-			)
+			end)
 			btn:RegisterForClicks('LeftButtonUp', 'RightButtonUp')
 
-			btn:SetScript(
-				'OnEnter',
-				function()
-					if btn.bagID and btn.slotID then
-						GameTooltip:SetOwner(btn, 'ANCHOR_RIGHT')
-						GameTooltip:SetBagItem(btn.bagID, btn.slotID)
-						GameTooltip:Show()
-					end
+			btn:SetScript('OnEnter', function()
+				if btn.bagID and btn.slotID then
+					GameTooltip:SetOwner(btn, 'ANCHOR_RIGHT')
+					GameTooltip:SetBagItem(btn.bagID, btn.slotID)
+					GameTooltip:Show()
 				end
-			)
+			end)
 
-			btn:SetScript(
-				'OnLeave',
-				function()
-					GameTooltip:Hide()
-				end
-			)
+			btn:SetScript('OnLeave', function()
+				GameTooltip:Hide()
+			end)
 
 			self.itemButtons[i] = btn
 		end
@@ -1728,18 +1627,12 @@ function module:ShowAffixBlacklistWindow()
 		window:SetMovable(true)
 		window:EnableMouse(true)
 		window:RegisterForDrag('LeftButton')
-		window:SetScript(
-			'OnDragStart',
-			function(frame)
-				frame:StartMoving()
-			end
-		)
-		window:SetScript(
-			'OnDragStop',
-			function(frame)
-				frame:StopMovingOrSizing()
-			end
-		)
+		window:SetScript('OnDragStart', function(frame)
+			frame:StartMoving()
+		end)
+		window:SetScript('OnDragStop', function(frame)
+			frame:StopMovingOrSizing()
+		end)
 
 		if window.PortraitContainer then
 			window.PortraitContainer:Hide()
@@ -1771,33 +1664,27 @@ function module:ShowAffixBlacklistWindow()
 		statsDropdown:SetText('Add Stat')
 
 		-- Setup stats dropdown generator
-		statsDropdown:SetupMenu(
-			function(dropdown, rootDescription)
-				for _, stat in ipairs(KNOWN_STATS) do
-					local isBlacklisted = module.DB.affixBlacklist[stat] ~= nil
-					local button =
-						rootDescription:CreateButton(
-						stat,
-						function()
-							if module.DB.affixBlacklist[stat] then
-								module.DB.affixBlacklist[stat] = nil
-								if detailedLogs and LibRTC and LibRTC.logger then
-									LibRTC.logger.debug(string.format('Removed "%s" from blacklist, calling UpdateAll()', stat))
-								end
-							else
-								module.DB.affixBlacklist[stat] = true
-								if detailedLogs and LibRTC and LibRTC.logger then
-									LibRTC.logger.debug(string.format('Added "%s" to blacklist, calling UpdateAll()', stat))
-								end
-							end
-							self:RefreshBlacklistDisplay()
-							self:UpdateAll()
+		statsDropdown:SetupMenu(function(dropdown, rootDescription)
+			for _, stat in ipairs(KNOWN_STATS) do
+				local isBlacklisted = module.DB.affixBlacklist[stat] ~= nil
+				local button = rootDescription:CreateButton(stat, function()
+					if module.DB.affixBlacklist[stat] then
+						module.DB.affixBlacklist[stat] = nil
+						if detailedLogs and LibRTC and LibRTC.logger then
+							LibRTC.logger.debug(string.format('Removed "%s" from blacklist, calling UpdateAll()', stat))
 						end
-					)
-					button:SetEnabled(not isBlacklisted)
-				end
+					else
+						module.DB.affixBlacklist[stat] = true
+						if detailedLogs and LibRTC and LibRTC.logger then
+							LibRTC.logger.debug(string.format('Added "%s" to blacklist, calling UpdateAll()', stat))
+						end
+					end
+					self:RefreshBlacklistDisplay()
+					self:UpdateAll()
+				end)
+				button:SetEnabled(not isBlacklisted)
 			end
-		)
+		end)
 
 		-- Stat Mode button (between stats and affixes dropdowns)
 		local statModeButton = CreateFrame('Button', nil, window)
@@ -1816,39 +1703,30 @@ function module:ShowAffixBlacklistWindow()
 		statModeButton.Text:SetText(module.DB.statMode == 'all' and 'AND' or 'OR')
 		statModeButton.Text:SetTextColor(1, 1, 1, 1)
 
-		statModeButton:SetScript(
-			'OnClick',
-			function()
-				-- Toggle between 'any' (OR) and 'all' (AND)
-				if module.DB.statMode == 'any' then
-					module.DB.statMode = 'all'
-					statModeButton.Text:SetText('AND')
-				else
-					module.DB.statMode = 'any'
-					statModeButton.Text:SetText('OR')
-				end
-				self:UpdateAll()
+		statModeButton:SetScript('OnClick', function()
+			-- Toggle between 'any' (OR) and 'all' (AND)
+			if module.DB.statMode == 'any' then
+				module.DB.statMode = 'all'
+				statModeButton.Text:SetText('AND')
+			else
+				module.DB.statMode = 'any'
+				statModeButton.Text:SetText('OR')
 			end
-		)
+			self:UpdateAll()
+		end)
 
 		-- Tooltip for stat mode button
-		statModeButton:SetScript(
-			'OnEnter',
-			function()
-				GameTooltip:SetOwner(statModeButton, 'ANCHOR_RIGHT')
-				GameTooltip:SetText('Stat Filter Mode', 1, 1, 1, 1, true)
-				GameTooltip:AddLine('OR: Keep items with ANY blacklisted stat', nil, nil, nil, true)
-				GameTooltip:AddLine('AND: Keep items only if they have ALL blacklisted stats', nil, nil, nil, true)
-				GameTooltip:Show()
-			end
-		)
+		statModeButton:SetScript('OnEnter', function()
+			GameTooltip:SetOwner(statModeButton, 'ANCHOR_RIGHT')
+			GameTooltip:SetText('Stat Filter Mode', 1, 1, 1, 1, true)
+			GameTooltip:AddLine('OR: Keep items with ANY blacklisted stat', nil, nil, nil, true)
+			GameTooltip:AddLine('AND: Keep items only if they have ALL blacklisted stats', nil, nil, nil, true)
+			GameTooltip:Show()
+		end)
 
-		statModeButton:SetScript(
-			'OnLeave',
-			function()
-				GameTooltip:Hide()
-			end
-		)
+		statModeButton:SetScript('OnLeave', function()
+			GameTooltip:Hide()
+		end)
 
 		-- Affixes dropdown (moved 40px to the right relative to original position)
 		local affixLabel = window:CreateFontString(nil, 'ARTWORK', 'GameFontNormalSmall')
@@ -1861,56 +1739,46 @@ function module:ShowAffixBlacklistWindow()
 		affixDropdown:SetText('Add Affix')
 
 		-- Setup affix dropdown generator
-		affixDropdown:SetupMenu(
-			function(dropdown, rootDescription)
-				-- Get sorted list of affix names
-				local affixNames = {}
-				for affixName in pairs(KNOWN_AFFIXES) do
-					table.insert(affixNames, affixName)
-				end
-				table.sort(affixNames)
-
-				for _, affix in ipairs(affixNames) do
-					local isBlacklisted = module.DB.affixBlacklist[affix] ~= nil
-					local spellID = KNOWN_AFFIXES[affix]
-					local icon = spellID and C_Spell.GetSpellTexture(spellID)
-
-					local button =
-						rootDescription:CreateButton(
-						affix,
-						function()
-							if module.DB.affixBlacklist[affix] then
-								module.DB.affixBlacklist[affix] = nil
-							else
-								module.DB.affixBlacklist[affix] = true
-							end
-							self:RefreshBlacklistDisplay()
-							self:UpdateAll()
-						end
-					)
-					if icon then
-						button:AddInitializer(
-							function(btn)
-								local iconTexture = btn:AttachTexture()
-								iconTexture:SetTexture(icon)
-								iconTexture:SetSize(16, 16)
-								iconTexture:SetPoint('LEFT', 4, 0)
-								btn.fontString:SetPoint('LEFT', 24, 0)
-							end
-						)
-					end
-					-- Add tooltip to dropdown item
-					if spellID then
-						button:SetTooltip(
-							function(tooltip)
-								tooltip:SetSpellByID(spellID)
-							end
-						)
-					end
-					button:SetEnabled(not isBlacklisted)
-				end
+		affixDropdown:SetupMenu(function(dropdown, rootDescription)
+			-- Get sorted list of affix names
+			local affixNames = {}
+			for affixName in pairs(KNOWN_AFFIXES) do
+				table.insert(affixNames, affixName)
 			end
-		)
+			table.sort(affixNames)
+
+			for _, affix in ipairs(affixNames) do
+				local isBlacklisted = module.DB.affixBlacklist[affix] ~= nil
+				local spellID = KNOWN_AFFIXES[affix]
+				local icon = spellID and C_Spell.GetSpellTexture(spellID)
+
+				local button = rootDescription:CreateButton(affix, function()
+					if module.DB.affixBlacklist[affix] then
+						module.DB.affixBlacklist[affix] = nil
+					else
+						module.DB.affixBlacklist[affix] = true
+					end
+					self:RefreshBlacklistDisplay()
+					self:UpdateAll()
+				end)
+				if icon then
+					button:AddInitializer(function(btn)
+						local iconTexture = btn:AttachTexture()
+						iconTexture:SetTexture(icon)
+						iconTexture:SetSize(16, 16)
+						iconTexture:SetPoint('LEFT', 4, 0)
+						btn.fontString:SetPoint('LEFT', 24, 0)
+					end)
+				end
+				-- Add tooltip to dropdown item
+				if spellID then
+					button:SetTooltip(function(tooltip)
+						tooltip:SetSpellByID(spellID)
+					end)
+				end
+				button:SetEnabled(not isBlacklisted)
+			end
+		end)
 
 		-- Custom text entry
 		local customLabel = window:CreateFontString(nil, 'ARTWORK', 'GameFontNormalSmall')
@@ -1942,32 +1810,23 @@ function module:ShowAffixBlacklistWindow()
 		addButton.Text:SetText('Add')
 		addButton.Text:SetTextColor(1, 1, 1, 1)
 
-		addButton:HookScript(
-			'OnDisable',
-			function(btn)
-				btn.Text:SetTextColor(0.6, 0.6, 0.6, 0.6)
-			end
-		)
+		addButton:HookScript('OnDisable', function(btn)
+			btn.Text:SetTextColor(0.6, 0.6, 0.6, 0.6)
+		end)
 
-		addButton:HookScript(
-			'OnEnable',
-			function(btn)
-				btn.Text:SetTextColor(1, 1, 1, 1)
-			end
-		)
+		addButton:HookScript('OnEnable', function(btn)
+			btn.Text:SetTextColor(1, 1, 1, 1)
+		end)
 
-		addButton:SetScript(
-			'OnClick',
-			function()
-				local text = addBox:GetText():trim()
-				if text ~= '' then
-					module.DB.affixBlacklist[text] = true
-					addBox:SetText('')
-					self:RefreshBlacklistDisplay()
-					self:UpdateAll()
-				end
+		addButton:SetScript('OnClick', function()
+			local text = addBox:GetText():trim()
+			if text ~= '' then
+				module.DB.affixBlacklist[text] = true
+				addBox:SetText('')
+				self:RefreshBlacklistDisplay()
+				self:UpdateAll()
 			end
-		)
+		end)
 
 		-- Max ilvl difference for blacklist
 		local maxIlvlLabel = window:CreateFontString(nil, 'ARTWORK', 'GameFontNormalSmall')
@@ -1981,39 +1840,30 @@ function module:ShowAffixBlacklistWindow()
 		maxIlvlBox:SetMaxLetters(3)
 		maxIlvlBox:SetNumeric(true)
 		maxIlvlBox:SetText(tostring(module.DB.maxIlvlDiffForBlacklist or 50))
-		maxIlvlBox:SetScript(
-			'OnTextChanged',
-			function(editBox, userInput)
-				if userInput then
-					local num = tonumber(editBox:GetText())
-					if num then
-						module.DB.maxIlvlDiffForBlacklist = num
-						self:UpdateAll()
-					end
+		maxIlvlBox:SetScript('OnTextChanged', function(editBox, userInput)
+			if userInput then
+				local num = tonumber(editBox:GetText())
+				if num then
+					module.DB.maxIlvlDiffForBlacklist = num
+					self:UpdateAll()
 				end
 			end
-		)
+		end)
 
 		-- Tooltip for max ilvl difference
-		maxIlvlBox:SetScript(
-			'OnEnter',
-			function()
-				GameTooltip:SetOwner(maxIlvlBox, 'ANCHOR_RIGHT')
-				GameTooltip:SetText('Max Item Level Difference', 1, 1, 1, 1, true)
-				GameTooltip:AddLine('Items more than this many levels below your equipped gear will be scrapped even if they have blacklisted stats/affixes.', nil, nil, nil, true)
-				GameTooltip:AddLine(' ', nil, nil, nil, true)
-				GameTooltip:AddLine('Example: Set to 50 at ilvl 740 = Only protect items 690+', nil, nil, nil, true)
-				GameTooltip:AddLine('Set to 0 to disable (always protect blacklisted items)', nil, nil, nil, true)
-				GameTooltip:Show()
-			end
-		)
+		maxIlvlBox:SetScript('OnEnter', function()
+			GameTooltip:SetOwner(maxIlvlBox, 'ANCHOR_RIGHT')
+			GameTooltip:SetText('Max Item Level Difference', 1, 1, 1, 1, true)
+			GameTooltip:AddLine('Items more than this many levels below your equipped gear will be scrapped even if they have blacklisted stats/affixes.', nil, nil, nil, true)
+			GameTooltip:AddLine(' ', nil, nil, nil, true)
+			GameTooltip:AddLine('Example: Set to 50 at ilvl 740 = Only protect items 690+', nil, nil, nil, true)
+			GameTooltip:AddLine('Set to 0 to disable (always protect blacklisted items)', nil, nil, nil, true)
+			GameTooltip:Show()
+		end)
 
-		maxIlvlBox:SetScript(
-			'OnLeave',
-			function()
-				GameTooltip:Hide()
-			end
-		)
+		maxIlvlBox:SetScript('OnLeave', function()
+			GameTooltip:Hide()
+		end)
 
 		-- Scroll frame for blacklist display with modern scrollbar and background
 		local scrollFrame = CreateFrame('ScrollFrame', nil, window)
@@ -2040,12 +1890,9 @@ function module:ShowAffixBlacklistWindow()
 		window.blacklistButtons = {}
 
 		-- Close button behavior
-		window.CloseButton:SetScript(
-			'OnClick',
-			function()
-				window:Hide()
-			end
-		)
+		window.CloseButton:SetScript('OnClick', function()
+			window:Hide()
+		end)
 
 		self.affixWindow = window
 	end
@@ -2123,19 +1970,13 @@ function module:RefreshBlacklistDisplay()
 			btn.deleteBtn.Text:SetText('Remove')
 			btn.deleteBtn.Text:SetTextColor(1, 1, 1, 1)
 
-			btn.deleteBtn:HookScript(
-				'OnDisable',
-				function(delBtn)
-					delBtn.Text:SetTextColor(0.6, 0.6, 0.6, 0.6)
-				end
-			)
+			btn.deleteBtn:HookScript('OnDisable', function(delBtn)
+				delBtn.Text:SetTextColor(0.6, 0.6, 0.6, 0.6)
+			end)
 
-			btn.deleteBtn:HookScript(
-				'OnEnable',
-				function(delBtn)
-					delBtn.Text:SetTextColor(1, 1, 1, 1)
-				end
-			)
+			btn.deleteBtn:HookScript('OnEnable', function(delBtn)
+				delBtn.Text:SetTextColor(1, 1, 1, 1)
+			end)
 
 			window.blacklistButtons[i] = btn
 		end
@@ -2153,36 +1994,24 @@ function module:RefreshBlacklistDisplay()
 				btn.iconButton:Show()
 
 				-- Set up spell tooltip for icon
-				btn.iconButton:SetScript(
-					'OnEnter',
-					function()
-						GameTooltip:SetOwner(btn.iconButton, 'ANCHOR_RIGHT')
-						GameTooltip:SetSpellByID(spellID)
-						GameTooltip:Show()
-					end
-				)
-				btn.iconButton:SetScript(
-					'OnLeave',
-					function()
-						GameTooltip:Hide()
-					end
-				)
+				btn.iconButton:SetScript('OnEnter', function()
+					GameTooltip:SetOwner(btn.iconButton, 'ANCHOR_RIGHT')
+					GameTooltip:SetSpellByID(spellID)
+					GameTooltip:Show()
+				end)
+				btn.iconButton:SetScript('OnLeave', function()
+					GameTooltip:Hide()
+				end)
 
 				-- Set up spell tooltip for text
-				btn.textButton:SetScript(
-					'OnEnter',
-					function()
-						GameTooltip:SetOwner(btn.textButton, 'ANCHOR_RIGHT')
-						GameTooltip:SetSpellByID(spellID)
-						GameTooltip:Show()
-					end
-				)
-				btn.textButton:SetScript(
-					'OnLeave',
-					function()
-						GameTooltip:Hide()
-					end
-				)
+				btn.textButton:SetScript('OnEnter', function()
+					GameTooltip:SetOwner(btn.textButton, 'ANCHOR_RIGHT')
+					GameTooltip:SetSpellByID(spellID)
+					GameTooltip:Show()
+				end)
+				btn.textButton:SetScript('OnLeave', function()
+					GameTooltip:Hide()
+				end)
 			else
 				btn.icon:Hide()
 				btn.iconButton:Hide()
@@ -2197,14 +2026,11 @@ function module:RefreshBlacklistDisplay()
 			btn.textButton:SetScript('OnLeave', nil)
 		end
 
-		btn.deleteBtn:SetScript(
-			'OnClick',
-			function()
-				module.DB.affixBlacklist[item] = nil
-				self:RefreshBlacklistDisplay()
-				self:UpdateAll()
-			end
-		)
+		btn.deleteBtn:SetScript('OnClick', function()
+			module.DB.affixBlacklist[item] = nil
+			self:RefreshBlacklistDisplay()
+			self:UpdateAll()
+		end)
 		btn:Show()
 
 		yOffset = yOffset + 24
