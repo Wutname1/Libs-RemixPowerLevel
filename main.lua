@@ -361,7 +361,7 @@ function LibRTC:OnInitialize()
 		showInTooltip = true,
 		sortBy = 'power', -- 'power' or 'versatility'
 		minimap = {
-			hide = false,
+			hide = true, -- Hidden by default; auto-shown during Timerunner seasons
 		},
 	}
 	-- Setup database
@@ -468,6 +468,15 @@ function LibRTC:OnInitialize()
 
 	-- Register minimap icon
 	LDBIcon:Register('Libs-RemixPowerLevel', ldbObject, self.db.minimap)
+
+	-- Auto-show during active Timerunner seasons, auto-hide when not
+	if IsTimerunnerMode() then
+		self.db.minimap.hide = false
+		LDBIcon:Show('Libs-RemixPowerLevel')
+	else
+		self.db.minimap.hide = true
+		LDBIcon:Hide('Libs-RemixPowerLevel')
+	end
 
 	-- Register slash command to open options
 	SLASH_REMIXPOWERLEVEL1 = '/rpl'
