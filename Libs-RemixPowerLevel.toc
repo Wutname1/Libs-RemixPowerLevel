@@ -4,7 +4,7 @@
 ## IconTexture: Interface/Addons/Libs-RemixPowerLevel/Logo-Icon
 ## Version: @project-version@
 ## Author: wutname1
-## OptionalDeps: Libs-AddonTools
+## OptionalDeps: LibsAddonTools
 ## SavedVariables: LibsRemixDB
 ## X-Curse-Project-ID: 1023198
 ## X-Wago-ID: vNAe8BNo
